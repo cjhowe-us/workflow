@@ -1,0 +1,21 @@
+{
+  "author": {
+    "name": "Christian Howe",
+    "url": "https://github.com/cjhowe-us"
+  },
+  "description": "Development workflow plugin with coding standards, document templates, and supervisor agents for the full ideate-design-implement-release lifecycle.",
+  "keywords": [
+    "coding-standards",
+    "document-templates",
+    "game-engine",
+    "lifecycle",
+    "rust",
+    "tdd",
+    "workflow"
+  ],
+  "license": "Apache-2.0",
+  "name": "workflow",
+  "repository": "https://github.com/cjhowe-us/workflow",
+  "skills": "./skills/",
+  "version": "1.0.0"
+}

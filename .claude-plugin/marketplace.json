@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "description": "Official plugin marketplace for the Harmonius game engine.",
+    "pluginRoot": "..",
+    "version": "1.0.0"
+  },
+  "name": "cjhowe-us-workflow",
+  "owner": {
+    "email": "cjhowe@users.noreply.github.com",
+    "name": "Christian Howe"
+  },
+  "plugins": [
+    {
+      "author": {
+        "name": "Christian Howe"
+      },
+      "category": "development",
+      "description": "Development workflow with coding standards, document templates, and supervisor agents for the full ideate-design-implement-release lifecycle.",
+      "name": "workflow",
+      "source": "..",
+      "tags": [
+        "coding-standards",
+        "document-templates",
+        "game-engine",
+        "lifecycle",
+        "rust",
+        "tdd",
+        "workflow"
+      ],
+      "version": "1.0.0"
+    }
+  ]
+}
