@@ -15,6 +15,7 @@ description: >
   review, release, or check status of anything in Harmonius, or whenever "harmonize" is mentioned.
   After killed background agent trees, `/harmonize reset-in-flight` clears stale `in-flight.md` rows
   before the next `run`; hosts without `TaskList`/`TaskStop` flush the registry during restart sweep.
+  On Cursor IDE, read `docs/cursor-host.md` in this plugin for dispatch mapping (`Task` vs `Agent`).
 ---
 
 # Harmonize
@@ -36,6 +37,28 @@ The main conversation stays responsive because every heavy agent runs as a backg
 persists to files, so the user can step away and come back. When a background task completes, the
 foreground session receives a completion notification.
 
+## Cursor IDE hosts
+
+Cursor does not provide **`Agent(subagent_type: harmonize|plan-orchestrator|…)`**, **`Skill()`**,
+**`TaskCreate`**, **`TaskList`**, **`TaskGet`**, **`TaskStop`**, **`TaskOutput`**, or
+**`CronList`** / **`CronCreate`**. Use the mapping in **`docs/cursor-host.md`** (plugin repo:
+`harmonize/docs/cursor-host.md`; dev checkout **`~/Code/workflow/harmonize`**).
+
+### `run` / bare `/harmonize` on Cursor
+
+1. **`Read`** this skill if the host has no **`Skill`** tool (already satisfied when this file is
+   loaded).
+2. Run **`agents/harmonize.md`** **§0** stash gate in the **foreground** when gated modes apply.
+3. Prefer **`Task`** with **`run_in_background: true`** and **`subagent_type: generalPurpose`**
+   (or the host default worker).
+   - Prompt **must** start with `mode: run`, include `repo: <absolute REPO>`, and cite
+     **`agents/harmonize.md`** plus **`docs/cursor-host.md`**.
+4. If **`Task`** is missing, execute **`agents/harmonize.md`** **inline** in the same assistant
+   (merge scan → post-merge → orchestrator prompts) per **`docs/cursor-host.md`**.
+5. **§3 item3 (first tool batch)** on Cursor: substitute the **`Task`** call above for
+   **`Agent(subagent_type: harmonize)`** — all other ordering (merge before implementers, stash
+   gate, lock rules) is **unchanged**.
+
 ## Non-negotiable: default `/harmonize` (run) behavior
 
 When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize run`**, the handler
@@ -50,10 +73,14 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
    dispatch. The **harmonize** master agent performs cron bootstrap in the background per its
    playbook.
 3. **First tool batch** — in the **same** assistant turn as loading this skill (or immediately
-   after, with no user round-trip), call `Agent` with `subagent_type: "harmonize"`,
-   `run_in_background: true`, and a prompt that begins with `mode: run` plus the repo path. You may
-   add a one-line user-facing ack (“Dispatched harmonize run in background.”) **without** waiting
-   for a reply.
+   after, with no user round-trip), dispatch the harmonize master **in the background**:
+   - **Claude Code:** `Agent` with `subagent_type: "harmonize"`, `run_in_background: true`, prompt
+     beginning with `mode: run` plus the repo path.
+   - **Cursor:** `Task` with `run_in_background: true`, `subagent_type: generalPurpose` (or host
+     default), same prompt **plus** explicit pointers to `agents/harmonize.md` and
+     `docs/cursor-host.md` (see **[Cursor IDE hosts](#cursor-ide-hosts)**).
+   You may add a one-line user-facing ack (“Dispatched harmonize run in background.”) **without**
+   waiting for a reply.
 4. **Ordered merge, then parallel unblock** — **`plan-orchestrator`** **`merge-detection`** must
    finish (`gh` on every `PLAN-*` with a PR) **before** any implementer dispatch wave. The master
    achieves this with a **nested background chain** (`post-merge-dispatch`) so the root pass does
@@ -480,7 +507,8 @@ In-flight background tasks (sparse): 8
   - feature-author (ai, task abc123, started 14:30Z)
   - plan-implementer (PLAN-platform-windowing, task def456, started 14:45Z)
 
-worktree-state.json: running_tasks (agent_id, tree_path, worktree_hierarchy root|linked, worktree_path, …); last_subagent_start / last_subagent_stop
+worktree-state.json: running_tasks (agent_id, tree_path, worktree_hierarchy root|linked,
+worktree_path, …); last_subagent_start / last_subagent_stop
 
 Cron: active, next fire in 7 minutes
 ```

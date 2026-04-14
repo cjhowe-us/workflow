@@ -13,6 +13,10 @@ Harmonius game engine.
 `harmonize` depends on `rumdl` for Markdown linting and auto-formatting of the documents its agents
 author. Install both.
 
+**Cursor:** install from [`.cursor-plugin/marketplace.json`](./.cursor-plugin/marketplace.json). See
+[`harmonize/docs/cursor-host.md`](./harmonize/docs/cursor-host.md) for how **`Task`** maps to the
+harmonize playbooks.
+
 ## Install
 
 ```bash

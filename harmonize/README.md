@@ -21,6 +21,13 @@ claude plugin install rumdl@cjhowe-us-workflow
 claude plugin install harmonize@cjhowe-us-workflow
 ```
 
+## Cursor IDE
+
+The same plugin ships a **Cursor** mirror (`.cursor-plugin/plugin.json`). Cursor agents do not have
+Claude Code **`Agent(subagent_type: …)`** or task APIs — follow **`docs/cursor-host.md`** for how
+**`/harmonize`** maps to **`Task`** and inline steps. Plugin source lives in **`cjhowe-us/workflow`**
+(`~/Code/workflow` when developing).
+
 ## Update
 
 ```bash

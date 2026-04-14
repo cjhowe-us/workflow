@@ -59,6 +59,23 @@ After **§0** when **§0** applies (**`run`**, **`merge-detection`**, **`dispatc
 tool action (**`post-merge-dispatch`** skips **§0**). Do not act from memory — state and conventions
 live in the skill.
 
+## Cursor IDE hosts
+
+When **`Skill(harmonize)`** is not invokable, **`Read`** `skills/harmonize/SKILL.md` from this
+plugin’s root after **§0** (when **§0** applies) or as the first action for ungated modes.
+
+When **`TaskCreate`** / **`TaskList`** / **`TaskGet`** / **`TaskStop`** / **`TaskOutput`** are
+absent, **omit** task scaffolding; append milestones to **`docs/plans/progress/phase-plan.md`**
+instead. **Never** `sleep` waiting on merge-detection — reconcile **`PLAN-*`** in-process with
+**`rg`** + **`gh pr view`** per **`docs/cursor-host.md`**.
+
+When spawning orchestrators or workers, use the host **`Task`** tool (**`subagent_type`:
+`generalPurpose`** or equivalent). Prompts should cite:
+
+- **`agents/harmonize.md`** (this file)
+- **`agents/plan-orchestrator.md`**, **`agents/specify-orchestrator.md`**,
+  **`agents/design-orchestrator.md`**, or the relevant worker path
+
 ## Prerequisites
 
 | Item | Path |
@@ -226,7 +243,8 @@ was just acquired above:
    `harmonize: auto-reset in-flight at root run start (flush registry)`. If the list was already
    empty, **do not** touch `phase-plan.md` for this flush (avoid noise).
 
-This removes stale rows after killed agent trees so the user never needs a manual **`/harmonize reset-in-flight`** before **`/harmonize`**.
+This removes stale rows after killed agent trees so the user never needs a manual
+**`/harmonize reset-in-flight`** before **`/harmonize`**.
 
 **Do not** auto-flush for **`post-merge-dispatch`**, standalone **`merge-detection`**, **`resume`**,
 or **`dispatch-only`** — those passes rely on existing registry rows until their reconcile steps
