@@ -65,7 +65,7 @@ memory — state and conventions live in the skill.
 | Lock file | `$REPO/docs/plans/locks.md` |
 | Run lock file | `$REPO/docs/plans/harmonize-run-lock.md` |
 | In-flight file | `$REPO/docs/plans/in-flight.md` |
-| Worktree state | `$REPO/docs/plans/worktree-state.json` — running background tasks; **`subagentStop`** hook removes finished **`task_id`** and sets **`last_subagent_stop`** |
+| Worktree state | `$REPO/docs/plans/worktree-state.json` — **`subagentStop`** runs **`subagent-stop-worktree-state.sh`** (`bash` + **`jq`**) to drop **`task_id`** from **`running_tasks`** and set **`last_subagent_stop`** |
 | Per-phase progress | `$REPO/docs/plans/progress/phase-{specify,design,plan,release}.md` |
 | Per-plan progress | `$REPO/docs/plans/progress/PLAN-<id>.md` |
 | Worktrees dir | `$REPO/../harmonius-worktrees/` (sibling of `REPO`; adjust only if the project uses a different convention documented in that repo) |
@@ -463,11 +463,11 @@ Immediately after each **`Agent(..., run_in_background: true)`** returns:
    **`subagent_type`** (same as `worker_agent`), **`task_id`**. Do not duplicate the same
    **`task_id`**.
 
-The Cursor **`subagentStop`** hook runs **`subagent-stop-worktree-state.py`**, which **removes**
-that **`task_id`** from **`running_tasks`**, sets **`last_subagent_stop`** to **`status: stopped`**
-with **`stopped_at`**, and bumps **`updated_at`**. Resume truth stays **Git worktrees** +
-**`PLAN-*`** + **`locks.md`**; **`worktree-state.json`** is only for **live background task**
-visibility.
+The Cursor **`subagentStop`** hook runs **`subagent-stop-worktree-state.sh`** (**`bash`** +
+**`jq`**; if **`jq`** is missing the script exits without error). It **removes** that **`task_id`**
+from **`running_tasks`**, sets **`last_subagent_stop`** to **`status: stopped`** with
+**`stopped_at`**, and bumps **`updated_at`**. Resume truth stays **Git worktrees** + **`PLAN-*`** +
+**`locks.md`**; **`worktree-state.json`** is only for **live background task** visibility.
 
 **`mode: status`:** include **`worktree-state.json`** (`running_tasks` count +
 **`last_subagent_stop`** if set).

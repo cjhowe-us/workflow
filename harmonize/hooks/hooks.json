@@ -14,7 +14,7 @@
     ],
     "subagentStop": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop-worktree-state.py",
+        "command": "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop-worktree-state.sh",
         "timeout": 30,
         "type": "command"
       }

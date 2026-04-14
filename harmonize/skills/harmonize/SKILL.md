@@ -294,7 +294,7 @@ not open PRs; it commits review fixes to an existing PR.
 | `docs/plans/locks.md` | Worktree claims (`branch`, path, phase, subsystem, reason) | Sub-skills (claim/release), harmonize agent (report only) |
 | `docs/plans/harmonize-run-lock.md` | One root harmonize chain at a time; live/ambiguous contention → **`AskUserQuestion`** (agent §0b) | harmonize master |
 | `docs/plans/in-flight.md` | Running background tasks | harmonize agent, phase orchestrators |
-| `docs/plans/worktree-state.json` | **`running_tasks`** + **`last_subagent_stop`**; pruned by **`subagentStop`** hook | dispatchers write; hook on stop |
+| `docs/plans/worktree-state.json` | **`running_tasks`** + **`last_subagent_stop`**; pruned by **`subagentStop`** (`bash` + **`jq`**) | dispatchers write; hook on stop |
 
 ## Routing on invocation
 
