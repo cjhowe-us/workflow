@@ -55,14 +55,14 @@ flowchart TD
 4. **No `Task` tool:** run **`agents/harmonize.md`** inline in the same conversation (no nested
    named agents).
 
-## Merge-detection without task await
+## Unblock workflow (gh pass) without task await
 
 When **`TaskGet` / `TaskOutput`** are missing:
 
 1. **`rg`** (or `grep`) `docs/plans/progress/PLAN-*.md` for numeric **`pr_number`** (and PR URLs).
-2. If **none**, merge-detection is a **no-op** — proceed to post-merge steps in the **same** turn.
+2. If **none**, the **`unblock-workflow-gh`** step is a **no-op** — proceed to post-merge steps in the **same** turn.
 3. If present, run **`gh pr view`** for each id, update `PLAN-*` + rollups, then proceed.
-4. **Never** `sleep` waiting on a background merge task.
+4. **Never** `sleep` waiting on a background gh task.
 
 ## Post-merge dispatch (`§6–§9`)
 
@@ -105,3 +105,10 @@ that tells the parent session to re-dispatch the correct background Task. If the
 ends with **`error`** / **`aborted`** while **`harmonize-run-lock.md`** still has **`active: true`**
 (and there is no pending file), **`harmonize-cursor-stop-followup.sh`** submits a follow-up to
 re-run default **`/harmonize`** (`mode: run`).
+
+**Every `subagentStop`:** after worktree roster updates, **`subagent-stop-unblock-workflow.sh`** runs.
+It always writes **`docs/plans/.cursor-hook-unblock-pending.json`** with **`last_unblock_hook_at`**
+(so the hook is observable even when it does nothing else). When no duplicate harmonize work is
+in flight, it emits **`followup_message`** to run **`mode: unblock-workflow`** (full gh pass + post-merge
+dispatch). It skips emitting when **`harmonize-run-lock.md`** is **`active: true`** or **`in-flight.md`**
+already lists a **`plan-orchestrator`** row for **`unblock-workflow-gh`** / **`merge-detection`**.

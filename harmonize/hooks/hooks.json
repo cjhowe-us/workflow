@@ -30,6 +30,11 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop-worktree-state.sh",
             "timeout": 30,
             "type": "command"
+          },
+          {
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop-unblock-workflow.sh",
+            "timeout": 30,
+            "type": "command"
           }
         ]
       }

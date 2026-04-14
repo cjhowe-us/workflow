@@ -4,7 +4,7 @@ description: >
   Supervisor agent for the harmonize skill. Reads the plan tree + progress files, detects merged
   PRs via gh, computes the topological ready set, and dispatches plan-implementer / pr-reviewer
   workers in parallel. Idempotent — safe to run repeatedly. Use when advancing the engine-wide
-  implementation, after merging a PR, or when the merge-detection cron fires.
+  implementation, after merging a PR, or when the unblock-workflow cron fires.
 model: opus
 tools:
   - Agent
@@ -33,7 +33,7 @@ Your job is to keep the plan tree making forward progress with minimal human int
 
 ## Load the skill
 
-In **`run`**, **`merge-detection`**, or **`dispatch-only`**, complete **Execution flow §0** stash
+In **`run`**, **`unblock-workflow-gh`**, **`merge-detection`** (legacy alias), or **`dispatch-only`**, complete **Execution flow §0** stash
 gate **before** `Skill(harmonize)` or any other tool use. In **`status`**, load
 **`Skill(harmonize)`** as the first action. The skill has the operational playbook: plan tree
 layout, frontmatter schemas, status lifecycle, agent roles, and bootstrap flow. Do not act on
@@ -84,16 +84,18 @@ If any prerequisite path under **`$REPO`** is missing, stop and report to the us
 
 | Mode | Prompt contains | Behavior |
 |------|-----------------|----------|
-| `run` | "run" (standalone only) | Full cycle: merge detect (§5) + dispatch (§6–8) — avoid when the harmonize master already ran merge-detection serially |
+| `run` | "run" (standalone only) | Full cycle: unblock gh pass (§5) + dispatch (§6–8) — avoid when the harmonize master already ran that gh pass serially |
 | `status` | "status" | Read state only, no dispatch |
-| `merge-detection` | "merge-detection" | **Gh-only:** check every implementation-plan PR, update `PLAN-*` progress, archive merges, refresh index — **no** worker dispatch |
+| `unblock-workflow-gh` | "unblock-workflow-gh" | **Gh-only:** check every implementation-plan PR, update `PLAN-*` progress, archive merges, refresh index — **no** worker dispatch |
+| `merge-detection` | "merge-detection" | **Legacy alias** for **`unblock-workflow-gh`** — same behavior |
 | `dispatch-only` | "dispatch-only" or "dispatch" | Skip §5; compute ready/review sets and dispatch workers |
 
 ## Execution flow
 
 ### 0. Stash gate (first)
 
-Before **any** other step in **`run`**, **`merge-detection`**, or **`dispatch-only`**, verify
+Before **any** other step in **`run`**, **`unblock-workflow-gh`**, **`merge-detection`** (alias), or
+**`dispatch-only`**, verify
 **the primary checkout** using **`$REPO`** from **Resolve `REPO`** (never the linked worktree cwd):
 
 1. **`git -C "$REPO" rev-parse --abbrev-ref HEAD`** is **`main`**
@@ -178,7 +180,7 @@ reconcile **on-disk worktrees** with `PLAN-*` progress and **`locks.md`**.
    **`phase: review`** with matching **`subsystem`**, or matching **`branch`** / **`plan_id`** on
    the progress file.
 
-### 5. Merge detection (GitHub CLI)
+### 5. Unblock gh pass (GitHub CLI)
 
 Purpose: reconcile **implementation plan** work with GitHub — every `docs/plans/progress/PLAN-*.md`
 that records a PR must be checked so merges unblock dependents before any new work dispatches.
@@ -204,9 +206,9 @@ Interpretation:
 Run this for **all** statuses that may still point at a live PR (`submitted`, `code_complete`,
 `started`, etc.), not only `submitted`, so out-of-band merges are caught.
 
-If **`merge-detection` mode** (prompt): after §5 (and §9 if you recompute `index.md`), **skip §6–8**
-entirely — **no** `plan-implementer` / `pr-reviewer` dispatch. Return counts of merges and updated
-plans.
+If **`unblock-workflow-gh`** or **`merge-detection`** (alias) mode (prompt): after §5 (and §9 if you
+recompute `index.md`), **skip §6–8** entirely — **no** `plan-implementer` / `pr-reviewer` dispatch.
+Return counts of merges and updated plans.
 
 ### 6. Compute ready set and resume (WIP) set
 
@@ -272,8 +274,8 @@ After **each** `Agent` return, update **`in-flight.md`** only; **`worktree-state
 
 ### 9. Recompute and write the total topological order
 
-- If **§5 merge detection ran** in this invocation (**`merge-detection`** or full **`run`** after
-  merges were processed), recompute and write `docs/plans/index.md`.
+- If **§5 unblock gh pass ran** in this invocation (**`unblock-workflow-gh`**, **`merge-detection`**
+  (alias), or full **`run`** after merges were processed), recompute and write `docs/plans/index.md`.
 - If the prompt is **`dispatch-only`** (§5 skipped), **do not** rewrite `index.md` in this pass —
   nothing in §5–8 should change the DAG.
 
@@ -335,7 +337,7 @@ Running the orchestrator twice back-to-back must be safe:
 |-------|----------|
 | Worker fails | Leave progress in current state, report, do not auto-retry |
 | Invalid plan | Skip with warning, do not block others |
-| GitHub unreachable | Log warning; in `merge-detection` mode stop after best-effort; in `dispatch-only` proceed |
+| GitHub unreachable | Log warning; in `unblock-workflow-gh` / `merge-detection` (alias) mode stop after best-effort; in `dispatch-only` proceed |
 | Cycle in plan tree | Stop, report, dispatch nothing |
 | `gh` not authenticated | Stop, ask user to run `gh auth login` |
 | Stash gate failure (not `main` or dirty tree) | Stop — user must stash/commit per harmonize §0 |
@@ -350,7 +352,7 @@ Running the orchestrator twice back-to-back must be safe:
 
 ## Never do
 
-- Use `AskUserQuestion` in **`run`**, **`merge-detection`**, or **`dispatch-only`** — fully
+- Use `AskUserQuestion` in **`run`**, **`unblock-workflow-gh`**, **`merge-detection`** (alias), or **`dispatch-only`** — fully
   automated; on ambiguity log a warning and skip the affected plan, never block on user input
 - Merge a PR (humans merge)
 - Write code to a worktree (workers do that)

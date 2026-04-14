@@ -8,12 +8,13 @@ root_task_id: null
 
 # Harmonize Run Lock
 
-Ensures at most one **root** `/harmonize` chain runs at a time (merge-detection serial pass plus
-`post-merge-dispatch` and its dispatch wave). The harmonize master agent owns this file.
+Ensures at most one **root** `/harmonize` chain runs at a time (**`unblock-workflow-gh`** serial pass
+via `plan-orchestrator` plus `post-merge-dispatch` and its dispatch wave). The harmonize master agent
+owns this file.
 
 `post-merge-dispatch` does **not** acquire the lock again; it **releases** the lock when the chain
-finishes **§9**. Standalone **`merge-detection`** and **`resume`** passes acquire and release on the
-same agent instance.
+finishes **§9**. Standalone **`unblock-workflow`**, **`unblock-workflow-gh`**, **`merge-detection`**
+(legacy alias), and **`resume`** passes acquire and release on the same agent instance.
 
 ## Stale locks
 
@@ -24,6 +25,6 @@ than **6 hours** when `TaskGet` / `TaskList` are unavailable, the next pass may 
 
 | Field | Meaning |
 |-------|---------|
-| `root_task_id` | `TaskCreate` id for this harmonize master pass (root `run`, or standalone merge-detection / resume) |
-| `merge_detection_task_id` | Background `plan-orchestrator` merge-detection task, once spawned |
+| `root_task_id` | `TaskCreate` id for this harmonize master pass (root `run` / `unblock-workflow`, or standalone gh-only / resume) |
+| `merge_detection_task_id` | Background `plan-orchestrator` **`unblock-workflow-gh`** task id (field name kept for compatibility), once spawned |
 | `continuation_task_id` | Nested `harmonize` `post-merge-dispatch` task, once spawned (root `run` only) |

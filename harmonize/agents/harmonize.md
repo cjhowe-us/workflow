@@ -6,7 +6,7 @@ description: >
   dispatches phase-specific orchestrators as background tasks, and reconciles completion
   notifications. Default run stops in-flight background tasks (restart sweep) before dispatch.
   Replaces the legacy workflow-supervisor agent. Spawned by the harmonize skill when the user
-  invokes /harmonize (bare or run), when the merge-detection cron fires, or when a sub-skill
+  invokes /harmonize (bare or run), when the unblock-workflow cron fires, or when a sub-skill
   releases a worktree lock.
 model: opus
 tools:
@@ -44,7 +44,7 @@ prioritization, or “should I proceed?”. Start work immediately.
 
 **Exception — global run lock (§0b):** when another chain may still be live, **`AskUserQuestion` is
 **required** so the user picks cancellation, a takeover path, or stale-lock handling. No other
-**`AskUserQuestion`** in autonomous `run` / **`merge-detection`** / **`resume`** unless an
+**`AskUserQuestion`** in autonomous `run` / **`unblock-workflow-gh`** / **`resume`** unless an
 **unrecoverable** block remains after that (e.g. `gh` not authenticated, corrupted state file).
 
 **Stash gate:** modes that mutate orchestration state (**§0**) require a **clean** primary checkout
@@ -53,7 +53,8 @@ and **`main`** `HEAD`. Do **not** auto-stash — the user must commit or stash b
 
 ## Load the harmonize skill
 
-After **§0** when **§0** applies (**`run`**, **`merge-detection`**, **`dispatch-only`**,
+After **§0** when **§0** applies (**`run`**, **`unblock-workflow`**, **`unblock-workflow-gh`**,
+**`merge-detection`** (alias), **`dispatch-only`**,
 **`resume`**), call `Skill(harmonize)` before reading or writing **`$REPO`** state. For
 **`status`**, **`stop`**, or **`post-merge-dispatch`**, call **`Skill(harmonize)`** as the first
 tool action (**`post-merge-dispatch`** skips **§0**). Do not act from memory — state and conventions
@@ -66,7 +67,8 @@ plugin’s root after **§0** (when **§0** applies) or as the first action for 
 
 When **`TaskCreate`** / **`TaskList`** / **`TaskGet`** / **`TaskStop`** / **`TaskOutput`** are
 absent, **omit** task scaffolding; append milestones to **`docs/plans/progress/phase-plan.md`**
-instead. **Never** `sleep` waiting on merge-detection — reconcile **`PLAN-*`** in-process with
+instead. **Never** `sleep` waiting on the **`plan-orchestrator`** gh pass — reconcile **`PLAN-*`**
+in-process with
 **`rg`** + **`gh pr view`** per **`docs/cursor-host.md`**.
 
 When spawning orchestrators or workers, use the host **`Task`** tool (**`subagent_type`:
@@ -97,22 +99,26 @@ skill. Never overwrite an existing state file.
 **Worktree isolation:** One repo, one **primary** working tree (**`REPO`**) plus **linked**
 worktrees under `../harmonius-worktrees/` for PR branches so the primary checkout stays on `main`.
 **Add a linked worktree only when a worker will produce real commits** (docs, code, TDD) — not for
-merge-detection, **`status`**, or other no-change passes. Orchestrators do **not** run
+**`unblock-workflow-gh`** / **`merge-detection`** (alias), **`status`**, or other no-change passes.
+Orchestrators do **not** run
 **`git worktree add`**. Hooks treat the primary tree as the coordination root for this JSON;
 **`git worktree list`** shows the full set. See worker agent playbooks.
 
 ## Invocation modes
 
-Parse the prompt for a mode keyword. Default is `run`.
+Parse the prompt for a mode keyword. Default is `run`. Treat **`merge-detection`** as a **legacy
+alias** for **`unblock-workflow-gh`** (same behavior).
 
 | Mode | Behavior |
 |------|----------|
-| `run` | Full cycle: reconcile, **restart sweep** (stop all still-running in-flight tasks), enforce locks, **start** merge-detection + **`post-merge-dispatch`** chain — **no** poll/sleep in the root pass |
+| `run` | Full cycle: reconcile, **restart sweep** (stop all still-running in-flight tasks), enforce locks, **start** **`unblock-workflow-gh`** (`plan-orchestrator` gh pass) + **`post-merge-dispatch`** chain — **no** poll/sleep in the root pass |
 | `status` | Read state, print summary, do not dispatch |
 | `stop` | Stop every in-flight task, keep locks, report |
-| `merge-detection` | **Only** `plan-orchestrator` merge-detection (§5 single-spawn); re-read state; report — no fan-out |
-| `post-merge-dispatch` | **Continuation:** await merge-detection `task_id`, reconcile it, **restart sweep**, locks, then **§6–9** |
-| `dispatch-only` | Skip merge detection; compute ready sets and parallel-dispatch orchestrators |
+| `unblock-workflow` | **Manual full unblock:** same **§5** chain as **`run`** (single **`plan-orchestrator`** **`unblock-workflow-gh`** spawn + nested **`post-merge-dispatch`**) — **no** §0b in-flight flush at root; **§3** last-seen only (no restart sweep) until the continuation |
+| `unblock-workflow-gh` | **Gh-only:** **`plan-orchestrator`** checks every implementation-plan PR, updates **`PLAN-*`**, archives merges, refreshes index — **no** worker dispatch from the master |
+| `merge-detection` | **Legacy alias** for **`unblock-workflow-gh`** |
+| `post-merge-dispatch` | **Continuation:** await **`unblock-workflow-gh`** `task_id`, reconcile it, **restart sweep**, locks, then **§6–9** |
+| `dispatch-only` | Skip gh unblock pass; compute ready sets and parallel-dispatch orchestrators |
 | `resume <phase> <subsystem>` | After a lock release, re-scan and dispatch the resource |
 
 ## Task tracking (owner convention)
@@ -145,7 +151,8 @@ Create intermediary tasks for each step below, update them pending → in_progre
 
 ### 0. Stash gate (clean primary checkout)
 
-When **`mode`** is **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, run this
+When **`mode`** is **`run`**, **`unblock-workflow`**, **`unblock-workflow-gh`**, **`merge-detection`**
+(legacy alias), **`dispatch-only`**, or **`resume`**, run this
 as the **first** executable step of the pass — **before** **`Skill(harmonize)`**, **`TaskCreate`**,
 reads/writes under **`$REPO`**, cron, or orchestrator dispatch. **Skip** for **`status`**,
 **`stop`**, and **`post-merge-dispatch`**.
@@ -190,9 +197,9 @@ Let `RUN_LOCK` be `docs/plans/harmonize-run-lock.md`. If missing, create it from
 
 #### Acquire run lock (single active root chain) — **before** any flush
 
-Acquire when **`mode`** is **`run`** (and not `post-merge-dispatch`), **`merge-detection`**, or
-**`resume`**. **Do not** acquire for **`post-merge-dispatch`**, **`dispatch-only`**, **`status`**,
-**`stop`**.
+Acquire when **`mode`** is **`run`** (and not `post-merge-dispatch`), **`unblock-workflow`**,
+**`unblock-workflow-gh`**, **`merge-detection`** (alias), or **`resume`**. **Do not** acquire for
+**`post-merge-dispatch`**, **`dispatch-only`**, **`status`**, **`stop`**.
 
 1. Read `RUN_LOCK` front matter.
 2. If `active` is true and any of `root_task_id`, `merge_detection_task_id`, `continuation_task_id`
@@ -246,9 +253,9 @@ was just acquired above:
 This removes stale rows after killed agent trees so the user never needs a manual
 **`/harmonize reset-in-flight`** before **`/harmonize`**.
 
-**Do not** auto-flush for **`post-merge-dispatch`**, standalone **`merge-detection`**, **`resume`**,
-or **`dispatch-only`** — those passes rely on existing registry rows until their reconcile steps
-run.
+**Do not** auto-flush for **`post-merge-dispatch`**, standalone **`unblock-workflow`**,
+**`unblock-workflow-gh`**, **`merge-detection`** (alias), **`resume`**, or **`dispatch-only`** —
+those passes rely on existing registry rows until their reconcile steps run.
 
 ### 1. Read all state
 
@@ -298,7 +305,7 @@ bootstrap" section.
 
 If `CronList` / `CronCreate` is unavailable or fails after a best effort, log a warning in the
 phase-plan event log (or stdout summary) and **continue**. Cron is optional; every `mode: run` pass
-still performs **ordered** merge-detection before dispatch so PRs advance without the scheduler.
+still performs **ordered** unblock gh pass before dispatch so PRs advance without the scheduler.
 
 ### 3. Reconcile in-flight tasks + default restart sweep
 
@@ -312,16 +319,20 @@ For each entry in `in-flight.md`:
 3. If **stopped** / **errored** / **unknown task_id**, append a warning to the phase-progress event
    log, remove entry
 4. If **still running**:
-   - **`mode: status`** or **`merge-detection`** — update `last_seen` to current UTC in
-     **`in-flight.md` only** (do **not** stop tasks, **do not** write phase-progress files for this)
+   - **`mode: status`**, **`unblock-workflow-gh`**, or **`merge-detection`** (alias) — update
+     `last_seen` to current UTC in **`in-flight.md` only** (do **not** stop tasks, **do not** write
+     phase-progress files for this)
    - **`mode: stop`** — call **`TaskStop(task_id)`**, log
      `harmonize: stop mode — <worker_agent> <task_id>`, remove entry (no redispatch)
    - **`mode: run`**, **`post-merge-dispatch`**, **`dispatch-only`**, or **`resume`** —
      **restart sweep:** call **`TaskStop(task_id)`**, append
      `harmonize: TaskStop for default restart — <worker_agent> <task_id>`, remove entry
+   - **`mode: unblock-workflow`** (root, before **`post-merge-dispatch`** runs) — same as **`status`**
+     / **`unblock-workflow-gh`**: **`last_seen`** only in **`in-flight.md`** (no **`TaskStop`** here;
+     the continuation performs the restart sweep)
 
 **`post-merge-dispatch` ordering:** the first time through, do **not** run §3 **before** **§5b** —
-you would `TaskStop` the active merge-detection task. Path: **§1** (and optionally **§2**) → **§5b**
+you would `TaskStop` the active **`plan-orchestrator`** gh task. Path: **§1** (and optionally **§2**) → **§5b**
 await → reconcile merge task + remove its `in-flight` row → **§3** (reconcile + restart sweep on
 what remains) → **§4** → **§6–9**.
 
@@ -343,45 +354,56 @@ For each entry in `locks.md`:
 
 Under NO circumstances dispatch new work that **conflicts** with a lock row (see §1b).
 
-### 5. Merge detection + nested dispatch chain (implementation plans via `gh`)
+### 5. Unblock workflow + nested dispatch chain (implementation plans via `gh`)
 
-For **`mode: run`**, **`mode: merge-detection`**, and **`mode: post-merge-dispatch`**, reconcile or
-await merge work so the dependency DAG matches GitHub **before** any implementer dispatch wave.
+The **unblock workflow** is: (1) **`plan-orchestrator`** runs **`unblock-workflow-gh`** — **`gh`** on
+every **`PLAN-*`** with a PR, archive merges, refresh **`index.md`** when needed; (2) after that,
+**`post-merge-dispatch`** re-reads state, **restart sweep**, locks, then **§6–9** so **all** PRs get
+review continuation, conflicts resolved where workers do, approved work merged per human policy, and
+**subagents spawn for every unblocked step** (orchestrator parallel wave). **`merge-detection`** in a
+prompt is a **legacy alias** for **`unblock-workflow-gh`** (gh-only).
 
-Skip this entire **spawn** subsection in **`mode: dispatch-only`**. In **`mode: merge-detection`**,
-this step **is** the main work (then jump to **§8** / **§9** — skip **§6–7**). In
-**`mode: post-merge-dispatch`**, skip the spawn and jump to **§5b**.
+For **`mode: run`**, **`mode: unblock-workflow`**, **`mode: unblock-workflow-gh`**, **`mode:
+merge-detection`** (alias), and **`mode: post-merge-dispatch`**, reconcile or await that gh work so
+the dependency DAG matches GitHub **before** any implementer dispatch wave.
 
-#### 5a. Spawn merge-detection (`mode: run` and `mode: merge-detection` only)
+Skip this entire **spawn** subsection in **`mode: dispatch-only`**. In **`mode: unblock-workflow-gh`**
+or **`mode: merge-detection`** (alias), this step **is** the main work (then jump to **§8** /
+**§9** — skip **§6–7**). In **`mode: post-merge-dispatch`**, skip the spawn and jump to **§5b**.
+
+#### 5a. Spawn gh pass (`mode: run`, `mode: unblock-workflow`, `mode: unblock-workflow-gh`, `mode: merge-detection` only)
 
 Procedure:
 
-1. If a `plan-orchestrator` task is **already** in `in-flight.md` with a merge-detection prompt, do
-   **not** spawn a duplicate. For **`mode: run`**, still ensure a **`post-merge-dispatch`** child is
-   queued for that existing merge task (spawn continuation if missing).
+1. If a `plan-orchestrator` task is **already** in `in-flight.md` with an **`unblock-workflow-gh`** or
+   **`merge-detection`** prompt, do **not** spawn a duplicate. For **`mode: run`** or **`mode:
+   unblock-workflow`**, still ensure a **`post-merge-dispatch`** child is queued for that existing
+   task (spawn continuation if missing).
 2. Otherwise dispatch **exactly one** background task:
 
 ```text
 Agent({
-  description: "plan-orchestrator merge-detection (serial)",
+  description: "plan-orchestrator unblock-workflow-gh (serial)",
   subagent_type: "plan-orchestrator",
-  prompt: "mode: merge-detection — gh reconciliation for all PLAN-* progress with PRs; no worker dispatch",
+  prompt: "mode: unblock-workflow-gh — gh reconciliation for all PLAN-* progress with PRs; no worker dispatch",
   run_in_background: true
 })
 ```
 
-3. Record `merge_detection_task_id` from the tool result. Write it to `in-flight.md`. For
-**`mode: run`** (root) and **`mode: merge-detection`**, also write the same id to **`RUN_LOCK`**
-(`merge_detection_task_id` field).
+3. Record `merge_detection_task_id` from the tool result (field name unchanged for compatibility).
+   Write it to `in-flight.md`. For **`mode: run`** (root), **`mode: unblock-workflow`**, **`mode:
+   unblock-workflow-gh`**, and **`mode: merge-detection`** (alias), also write the same id to
+   **`RUN_LOCK`** (`merge_detection_task_id` field).
 
-#### 5b. Await merge + re-read
+#### 5b. Await gh pass + re-read
 
 - **`mode: post-merge-dispatch`:** parse `merge_detection_task_id` from the prompt; await that task
   with `TaskGet` / `TaskOutput` until terminal. **Forbidden:** `bash sleep` for pacing — use only
   task APIs (or the platform’s blocking task await if available).
-- **`mode: merge-detection`:** await the merge-detection task from §5a the same way.
-- **`mode: run`:** do **not** await here. In the **same** assistant message as §5a, dispatch **one**
-  nested background **`harmonize`** continuation:
+- **`mode: unblock-workflow-gh`** or **`mode: merge-detection`** (alias): await the task from §5a the
+  same way.
+- **`mode: run`** or **`mode: unblock-workflow`:** do **not** await here. In the **same** assistant
+  message as §5a, dispatch **one** nested background **`harmonize`** continuation:
 
 ```text
 Agent({
@@ -392,25 +414,26 @@ Agent({
 })
 ```
 
-Record the continuation’s `task_id` in **`RUN_LOCK`** as `continuation_task_id` (**`mode: run`**
-root only).
+Record the continuation’s `task_id` in **`RUN_LOCK`** as `continuation_task_id` (**`mode: run`** or
+**`mode: unblock-workflow`** root only).
 
 The continuation runs **`mode: post-merge-dispatch`**: **§1** read state → **§5b** await → reconcile
 merge task and remove its `in-flight` row → **§3** (reconcile + restart sweep on remaining rows) →
 **§4** → **§6–9** (see §3 ordering — never §3 before the merge await).
 
-After merge-detection completes (**for `post-merge-dispatch` and `merge-detection` only**),
-**re-read** `docs/plans/progress/PLAN-*.md`, `docs/plans/index.md`, and `phase-plan.md` so the ready
-set reflects merges.
+After the gh pass completes (**for `post-merge-dispatch` and `unblock-workflow-gh` / `merge-detection`
+(alias) only**), **re-read** `docs/plans/progress/PLAN-*.md`, `docs/plans/index.md`, and
+`phase-plan.md` so the ready set reflects merges.
 
-**`mode: run` (root pass):** after §5a + continuation dispatch, **skip §6–7**, write §8 notes that
-merge + post-merge chain were scheduled, §9 summary, and **return** — the continuation owns the
-dispatch wave.
+**`mode: run` or `mode: unblock-workflow` (root pass):** after §5a + continuation dispatch, **skip
+§6–7**, write §8 notes that unblock gh + post-merge chain were scheduled, §9 summary, and **return** —
+the continuation owns the dispatch wave.
 
 ### 6. Compute the phase ready set
 
-Skip in **`mode: merge-detection`** (no dispatch wave) and in **`mode: run`** when this pass is the
-**root** that already dispatched **`post-merge-dispatch`** (continuation computes the ready set).
+Skip in **`mode: unblock-workflow-gh`** or **`mode: merge-detection`** (alias) (no dispatch wave)
+and in **`mode: run`** or **`mode: unblock-workflow`** when this pass is the **root** that already
+dispatched **`post-merge-dispatch`** (continuation computes the ready set).
 
 **Per topic**, readiness follows **Specify → Design → Plan → TDD/Review**.
 **Across different subsystems and independent topics**, compute ready sets **in parallel** — do not
@@ -455,7 +478,7 @@ Before each **orchestrator** `Agent` call, check `in-flight.md`: if that **orche
 `design-orchestrator`, task not completed), **skip** spawning a **duplicate** of that orchestrator
 only.
 
-**`plan-orchestrator`** prompt must be **`dispatch-only`** (merge detection already completed):
+**`plan-orchestrator`** prompt must be **`dispatch-only`** (unblock gh pass already completed):
 
 ```text
 mode: dispatch-only — repo: <REPO> — ready + review workers per playbook
@@ -484,8 +507,8 @@ Agent({
 })
 ```
 
-In **`mode: merge-detection`** and **`mode: run`** (root pass that scheduled
-**`post-merge-dispatch`**), **skip** this §7 entirely.
+In **`mode: unblock-workflow-gh`**, **`mode: merge-detection`** (alias), **`mode: run`**, or **`mode:
+unblock-workflow`** (root pass that scheduled **`post-merge-dispatch`**), **skip** this §7 entirely.
 
 #### 7a. `in-flight.md` and `worktree-state.json`
 
@@ -518,7 +541,7 @@ Update `docs/plans/progress/phase-*.md` **only** when this pass applies a **mate
 
 - **Worker completion** — after `TaskOutput` from a finished in-flight task, merge real progress
   (counts, PR links, subsystem rows) from that output.
-- **Merge detection / `gh` reconciliation** — when a `PLAN-*` PR is merged or closed, or when
+- **Unblock gh / `gh` reconciliation** — when a `PLAN-*` PR is merged or closed, or when
   `index.md` / plan archive changes.
 - **Lock enforcement** — when tasks are stopped because the user claimed a worktree lock.
 - **Errors** — when a task stops or fails in a way that affects what work is safe to dispatch.
@@ -534,10 +557,11 @@ speculation.
 ### 9. Report summary
 
 **Release global run lock** before the summary when **`mode`** is **`post-merge-dispatch`**,
-**`merge-detection`**, **`resume`**, or **`dispatch-only`**: set `docs/plans/harmonize-run-lock.md`
-to `active: false` with `root_task_id`, `merge_detection_task_id`, and `continuation_task_id` all
-null. **Never** release from **`mode: run`** (root pass) — the **`post-merge-dispatch`**
-continuation always releases after its dispatch wave.
+**`unblock-workflow-gh`**, **`merge-detection`** (alias), **`resume`**, or **`dispatch-only`**: set
+`docs/plans/harmonize-run-lock.md` to `active: false` with `root_task_id`, `merge_detection_task_id`,
+and `continuation_task_id` all null. **Never** release from **`mode: run`** or **`mode:
+unblock-workflow`** (root pass) — the **`post-merge-dispatch`** continuation always releases after its
+dispatch wave.
 
 **Do not** append a **`phase-plan.md`** line solely for this lock release (orchestration-only).
 

@@ -51,7 +51,7 @@ emit_supervisor_from_file() {
   [[ -n "$repo" ]] || repo="$ROOT"
   msg=$(
     cat <<EOF
-A plan-orchestrator (supervisor) background task ended (${end_status}). Immediately dispatch a replacement background Task with run_in_background: true and subagent_type: generalPurpose. Follow agents/plan-orchestrator.md and docs/cursor-host.md in this plugin. Include repo: ${repo} and preserve mode keywords from the prior task (merge-detection, dispatch-only, run, etc.). Prior context (truncated): ${ctx}
+A plan-orchestrator (supervisor) background task ended (${end_status}). Immediately dispatch a replacement background Task with run_in_background: true and subagent_type: generalPurpose. Follow agents/plan-orchestrator.md and docs/cursor-host.md in this plugin. Include repo: ${repo} and preserve mode keywords from the prior task (unblock-workflow-gh, merge-detection, dispatch-only, run, etc.). Prior context (truncated): ${ctx}
 EOF
   )
   jq -n --arg m "$msg" '{followup_message: $m}'

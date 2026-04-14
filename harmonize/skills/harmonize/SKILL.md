@@ -7,8 +7,8 @@ description: >
   Requires plans to link to design docs and design docs to trace F/R/US; progress files link to plans.
   Default run restarts in-flight background tasks before the dispatch wave.
   A bare /harmonize immediately dispatches the harmonize master agent in the background (no
-  approval, no “what next?” prompt). The master chains merge-detection and a post-merge continuation
-  (gh on PLAN-* PRs) before fanning out every unblocked worker in parallel. Routes user
+  approval, no “what next?” prompt). The master chains the **unblock workflow** (**`unblock-workflow-gh`**
+  via `plan-orchestrator` + **`post-merge-dispatch`**) before fanning out every unblocked worker in parallel. Routes user
   intent to phase-specific sub-skills for interactive
   work while a background supervisor task runs the orchestration tree asynchronously and opens many
   small draft PRs for human review. Use whenever the user wants to plan, design, implement,
@@ -54,9 +54,9 @@ Cursor does not provide **`Agent(subagent_type: harmonize|plan-orchestrator|…)
    - Prompt **must** start with `mode: run`, include `repo: <absolute REPO>`, and cite
      **`agents/harmonize.md`** plus **`docs/cursor-host.md`**.
 4. If **`Task`** is missing, execute **`agents/harmonize.md`** **inline** in the same assistant
-   (merge scan → post-merge → orchestrator prompts) per **`docs/cursor-host.md`**.
+   (unblock gh scan → post-merge → orchestrator prompts) per **`docs/cursor-host.md`**.
 5. **§3 item3 (first tool batch)** on Cursor: substitute the **`Task`** call above for
-   **`Agent(subagent_type: harmonize)`** — all other ordering (merge before implementers, stash
+   **`Agent(subagent_type: harmonize)`** — all other ordering (unblock gh before implementers, stash
    gate, lock rules) is **unchanged**.
 
 ## Non-negotiable: default `/harmonize` (run) behavior
@@ -81,22 +81,22 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
      `docs/cursor-host.md` (see **[Cursor IDE hosts](#cursor-ide-hosts)**).
    You may add a one-line user-facing ack (“Dispatched harmonize run in background.”) **without**
    waiting for a reply.
-4. **Ordered merge, then parallel unblock** — **`plan-orchestrator`** **`merge-detection`** must
+4. **Ordered gh pass, then parallel unblock** — **`plan-orchestrator`** **`unblock-workflow-gh`** must
    finish (`gh` on every `PLAN-*` with a PR) **before** any implementer dispatch wave. The master
    achieves this with a **nested background chain** (`post-merge-dispatch`) so the root pass does
    **not** poll or sleep; the continuation re-reads progress, then issues **one** parallel batch of
    orchestrators (`plan-orchestrator` **`dispatch-only`** + specify + design as needed). Never skip
-   merge reconciliation before that wave in `mode: run`.
+   PR reconciliation before that wave in `mode: run`.
 5. **Default restart of in-flight work** — on **`run`**, **`post-merge-dispatch`** (after merge
    completes), **`dispatch-only`**, and **`resume`**, the master performs a **restart sweep** on
-   `in-flight.md` (merge-detection agent is awaited **before** this sweep in the continuation):
+   `in-flight.md` (**`unblock-workflow-gh`** agent is awaited **before** this sweep in the continuation):
    - If **`TaskList` / `TaskStop` are available**: reconcile rows, then **`TaskStop`** every task
      still listed as running; then spawn **fresh** orchestrators.
    - If those APIs are **absent** (typical Cursor hosts): treat the file as **stale** after a killed
      tree — **flush** `in_flight` to `[]` only (no phase rollup bump for an empty flush), then spawn
      **fresh** orchestrators (never assume dead `task_id` values are still stoppable).
-**`status`** and **`merge-detection`** do not stop running tasks; **`stop`** stops them without
-redispatch.
+**`status`**, **`unblock-workflow-gh`**, and **`merge-detection`** (legacy alias) do not stop running tasks;
+**`stop`** stops them without redispatch.
 
 Use **`/harmonize status`** (or `status` argument) only when the user wants a read-only summary with
 **no** background dispatch.
@@ -111,7 +111,8 @@ full **`run`** also **stops** stale runners via §3 restart sweep before issuing
 
 ## Stash gate (clean `main`, material changes only)
 
-Before **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, the harmonize master
+Before **`run`**, **`unblock-workflow`**, **`unblock-workflow-gh`**, **`merge-detection`** (alias),
+**`dispatch-only`**, or **`resume`**, the harmonize master
 (and **`plan-orchestrator`** in those modes) runs this **first** — before **`Skill(harmonize)`**
 reload, **`TaskCreate`**, cron, reads of dispatch state, or worker dispatch. It requires:
 
@@ -148,7 +149,10 @@ replace (e.g. editor lock) must **not** abort the subagent — hooks exit succes
 **Cursor IDE:** when a **plan-orchestrator** (supervisor) or harmonize **`mode: run`** background Task stops with **`error`** / **`aborted`**, the plugin’s **`subagentStop`** hook records **`docs/plans/.cursor-hook-restart-pending.json`**; the **`stop`** hook submits a follow-up that
 re-dispatches orchestration. If the main loop ends with **`error`** / **`aborted`** while
 **`harmonize-run-lock.md`** is still **`active: true`**, the **`stop`** hook re-triggers default
-**`/harmonize`**. See **`docs/cursor-host.md`** (Task recovery hooks).
+**`/harmonize`**. On **every** **`subagentStop`**, **`subagent-stop-unblock-workflow.sh`** updates
+**`docs/plans/.cursor-hook-unblock-pending.json`** and may submit **`followup_message`** for **`mode:
+unblock-workflow`** when no duplicate supervisor task is already in flight. See **`docs/cursor-host.md`**
+(Task recovery hooks).
 
 If **material** dirty, **stop** — no orchestrator dispatch. The user runs
 **`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
@@ -182,7 +186,7 @@ under **`$REPO/../harmonius-worktrees/`** (sibling of the primary checkout) so a
 coordination.
 
 **No idle worktrees:** Run **`git worktree add`** only when a worker will **change tracked files**
-(or add new ones) for a real PR. Do **not** add worktrees for **merge-detection**,
+(or add new ones) for a real PR. Do **not** add worktrees for **`unblock-workflow-gh`** / **`merge-detection`** (alias),
 **`mode: status`**, read-only reconciliation, empty orchestrator waves, or any pass that will
 **not** produce commits. **Orchestrators** (including **`plan-orchestrator`**) **never** run
 **`git worktree add`** themselves — only workers that start document or implementation PRs do, at
@@ -381,9 +385,11 @@ When the user invokes this skill, parse the argument and route:
 | `status` | Print SDLC status summary, do not dispatch |
 | `run` | Dispatch the `harmonize` master agent in background for a full SDLC pass |
 | `stop` | Stop all in-flight tasks, report, do not release locks |
-| `cron` | Bootstrap the merge-detection cron |
-| `merge-detect` | Dispatch `harmonize` master in `merge-detection` mode (manual merged-PR check) |
-| `merge-detection` | Same as `merge-detect` |
+| `cron` | Bootstrap the unblock-workflow cron |
+| `unblock` | Same as **`unblock-workflow`** |
+| `unblock-workflow` | Dispatch `harmonize` master: full unblock (gh on `PLAN-*` + **`post-merge-dispatch`**); **no** root in-flight flush — use after **`SubagentStop`** or when PRs unblock without a full `run` |
+| `merge-detect` | Dispatch `harmonize` master in **`unblock-workflow-gh`** only (legacy name; gh-only, no post-merge dispatch) |
+| `merge-detection` | Same as **`merge-detect`** — legacy alias for **`unblock-workflow-gh`** |
 | `clear-in-flight` | Same as **`reset-in-flight`** |
 | `reset-in-flight` | Clear `docs/plans/in-flight.md` to `[]`; **no** dispatch; **no** stash gate; avoid extra rollup noise |
 | `resume <phase> <subsystem>` | After a sub-skill releases a lock, re-dispatch for that resource |
@@ -399,17 +405,17 @@ switch.
 
 ### Default: topological continuation
 
-A bare `/harmonize` (no argument) must **not** stop at status-only or merge-detect alone. Dispatch
+A bare `/harmonize` (no argument) must **not** stop at status-only or gh-only alone. Dispatch
 the `harmonize` master agent in background with default mode `run` so it:
 
 1. Reconciles **`in-flight.md`** per the
    **[Killed agent trees](#killed-agent-trees-in-flightmd-orphans)** restart sweep (`TaskStop` when
    task APIs exist; **flush** when they do not), enforces locks, re-reads phase + `PLAN-*` files.
-2. Starts **`plan-orchestrator`** **`merge-detection`** in the background and chains **`harmonize`**
-   **`post-merge-dispatch`** so merge completes **before** implementers without the root pass
+2. Starts **`plan-orchestrator`** **`unblock-workflow-gh`** in the background and chains **`harmonize`**
+   **`post-merge-dispatch`** so PR state is reconciled **before** implementers without the root pass
    blocking on polls — for each `PLAN-*` with a PR, **`gh pr view`**; archive merged plans; update
    event logs; refresh `docs/plans/index.md` when the orchestrator recomputes order — **no** worker
-   dispatch in merge-detection.
+   dispatch in **`unblock-workflow-gh`**.
 3. The continuation awaits merge, reconciles it, runs the same **restart sweep** on other runners,
    then re-reads progress and computes each phase’s ready set.
 4. Dispatches **every** phase orchestrator that has ready work **in one parallel batch** (same
@@ -449,18 +455,21 @@ The cron fires every 15 minutes on off-minutes; Claude receives the prompt, the 
 agent in background.
 
 If `CronList` or `CronCreate` is unavailable in the master agent, it logs and continues —
-**ordered** merge-detection (§5 of the master playbook) still runs that pass before any dispatch.
+**ordered** unblock gh pass (§5 of the master playbook) still runs that pass before any dispatch.
 
-## Manual merge-detection backup
+## Manual unblock workflow
 
-Purpose: detect merged Phase 3 PRs (`gh`), advance `PLAN-*` progress, unblock dependents — same
-subset as the `merge-detection` mode on the `harmonize` master agent.
+Purpose: run the **full** unblock chain (same §5 as **`run`**, but **without** the root **`run`**
+in-flight flush): **`plan-orchestrator`** **`unblock-workflow-gh`**, then **`harmonize`**
+**`post-merge-dispatch`** so reviews, ready implementers, and other orchestrators catch up after PRs
+unblock — without **`TaskStop`**-ing the whole tree at the start.
 
 ### When to run
 
-- User says `/harmonize merge-detect` or `/harmonize merge-detection`
-- Cron bootstrap in the previous section did not confirm an active `[harmonize-merge-detect]` job
-  and a **lightweight** merge check is needed without a full `run`
+- User says **`/harmonize unblock-workflow`**, **`/harmonize unblock`**, or the Cursor **`subagentStop`**
+  hook suggested it
+- After merges or CI clears externally and you want continuation **without** a full **`run`**
+  restart sweep
 
 #### How to run
 
@@ -470,13 +479,41 @@ subset as the `merge-detection` mode on the `harmonize` master agent.
    Agent({
      subagent_type: "harmonize",
      run_in_background: true,
-     prompt: "mode: merge-detection [harmonize-merge-detect-manual] — PR merge → PLAN advance"
+     prompt: "mode: unblock-workflow [harmonize-unblock-manual] — gh PLAN-* + post-merge dispatch"
+   })
+   ```
+
+2. If background tasks are not available, perform the same steps as the `harmonize` master agent’s
+   **`unblock-workflow`** mode (agent §5).
+
+This pass is idempotent: repeating it should not advance status twice for the same merge.
+
+## Manual gh-only backup (`merge-detect` / `merge-detection`)
+
+Purpose: detect merged Phase 3 PRs (`gh`), advance `PLAN-*` progress — same subset as **`mode:
+unblock-workflow-gh`** on the `harmonize` master agent (**no** automatic post-merge dispatch).
+
+### When to run
+
+- User says `/harmonize merge-detect` or `/harmonize merge-detection`
+- Cron bootstrap in the previous section did not confirm an active `[harmonize-merge-detect]` job
+  and a **lightweight** gh check is needed without dispatch
+
+#### How to run
+
+1. Prefer background dispatch:
+
+   ```text
+   Agent({
+     subagent_type: "harmonize",
+     run_in_background: true,
+     prompt: "mode: unblock-workflow-gh [harmonize-merge-detect-manual] — PR merge → PLAN advance"
    })
    ```
 
 2. If background tasks are not available, instruct the session to perform the same steps as the
-   `harmonize` master agent’s merge-detection pass (read state, delegate merge check to
-   `plan-orchestrator` per agent playbook).
+   `harmonize` master agent’s **`unblock-workflow-gh`** pass (read state, delegate to `plan-orchestrator`
+   per agent playbook).
 
 This pass is idempotent: repeating it should not advance status twice for the same merge.
 
@@ -533,7 +570,7 @@ Cron: active, next fire in 7 minutes
 
 - At the start of any Harmonius work session — to check status
 - When the user mentions "harmonize" in any form
-- When the merge-detection cron fires
+- When the unblock-workflow cron fires
 - When the user wants to author, revise, implement, review, or release anything
 - After killing background harmonize tasks — **`/harmonize reset-in-flight`**, then **`/harmonize`**
 

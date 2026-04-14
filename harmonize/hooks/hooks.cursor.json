@@ -30,6 +30,12 @@
         "loop_limit": null,
         "timeout": 30,
         "type": "command"
+      },
+      {
+        "command": "./hooks/subagent-stop-unblock-workflow.sh",
+        "loop_limit": null,
+        "timeout": 30,
+        "type": "command"
       }
     ]
   }

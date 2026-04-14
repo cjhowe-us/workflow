@@ -19,7 +19,7 @@ happens inside the worktree by `plan-implementer`.
 ## Relation to `/harmonize` (autonomous)
 
 **`/harmonize`** / **`/harmonize run`** dispatches the **harmonize** master agent, which runs
-**serial** GitHub merge detection on **implementation plan** PRs (`PLAN-*` progress + `gh`), then
+**serial** GitHub unblock gh pass on **implementation plan** PRs (`PLAN-*` progress + `gh`), then
 **parallel** orchestrators — including **`plan-implementer`** for every ready plan. Use **this**
 sub-skill when the user wants **interactive** control (coarse lock, step approvals, or observed
 run-to-completion). Route with **`Skill(harmonize-implement, <plan_id>)`** from the main harmonize
