@@ -25,7 +25,7 @@ installed from Cursor, resolve the unpacked plugin directory from your editor or
 | `Agent(subagent_type: plan-orchestrator)` | Same: `Task` + `agents/plan-orchestrator.md` |
 | `Skill(harmonize)` | `Read` on `skills/harmonize/SKILL.md` |
 | `TaskCreate` / `TaskList` / `TaskGet` / `TaskStop` / `TaskOutput` | **Absent** — use `in-flight.md` as a **log**, flush when trees die |
-| `CronList` / `CronCreate` | **Absent** — log “cron skipped” on `phase-plan.md`; rely on manual `/harmonize` |
+| `CronList` / `CronCreate` | **Absent** — log "cron skipped" on `phase-plan.md`; rely on manual `/harmonize` |
 | `AskUserQuestion` | May exist — if **absent** and run lock is contentious, **stop** with a summary |
 
 ## Run flow (high level)
@@ -94,7 +94,7 @@ under **`.cursor-plugin/plugin.json`**. See the root [**README**](../../README.m
 
 ## Task recovery hooks (Cursor)
 
-Cursor’s **`subagentStop`** hook only applies `followup_message` when the Task **`status`** is
+Cursor's **`subagentStop`** hook only applies `followup_message` when the Task **`status`** is
 `completed` (see [Cursor hooks](https://cursor.com/docs/hooks)). When a background
 **plan-orchestrator** Task ends with **`error`** or **`aborted`**,
 `subagent-stop-worktree-state.sh` writes **`docs/plans/.cursor-hook-restart-pending.json`** (ignored

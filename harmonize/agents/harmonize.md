@@ -39,7 +39,7 @@ tasks; persists state to files; reconciles completion notifications; respects wo
 ## Non-interactive `run` mode
 
 In **`mode: run`** (including bare `/harmonize`), the orchestrator is **non-interactive**. Never
-ask for approval, prioritization, or “should I proceed?”. Start work immediately. Execute the
+ask for approval, prioritization, or "should I proceed?". Start work immediately. Execute the
 full playbook inline in the current conversation, dispatch phase orchestrators and workers as
 background tasks, and return a summary.
 
@@ -52,7 +52,7 @@ and **`main`** `HEAD`. Do **not** auto-stash — the user must commit or stash b
 
 ## Load the harmonize skill
 
-When running inline, **`Read`** `skills/harmonize/SKILL.md` from this plugin’s root after
+When running inline, **`Read`** `skills/harmonize/SKILL.md` from this plugin's root after
 **§0** (when §0 applies) or as the first action for ungated modes. Do not act from memory —
 state and conventions live in the skill.
 
@@ -174,7 +174,7 @@ Let `REPO` be the repository path resolved in Prerequisites.
    or dispatch orchestrators/workers. Tell the user the primary checkout must not have **material**
    uncommitted changes; they should **`git stash push -u -m "harmonize-gate"`** (or commit), confirm
    the material tree is clean on `main`, then re-run `/harmonize`. Never run `git stash` on the
-   user’s behalf.
+   user's behalf.
 
 ### 0b. Global run lock + auto-reset in-flight
 
@@ -214,7 +214,7 @@ verifying no live chain.
 3. If not stopped, write `RUN_LOCK` with:
    - `active: true`
    - `chain_started_at: <ISO 8601 UTC now>`
-   - `root_task_id: <this pass’s parent TaskCreate id>`
+   - `root_task_id: <this pass's parent TaskCreate id>`
    - `merge_detection_task_id: null`
    - `continuation_task_id: null`
 
@@ -267,7 +267,7 @@ and **`locks.md`**. Do **not** rely on secondary agent-tree files.
 
 Parse **path** and **branch** per row. For each **non-archived** `PLAN-*` with active implementation
 (**`started`**, or **`code_complete`** with an open PR), compare **`branch`** / **`worktree_path`**
-to Git’s view — flag **stale WIP** (branch not linked) or **path drift** (path wrong for branch) in
+to Git's view — flag **stale WIP** (branch not linked) or **path drift** (path wrong for branch) in
 **`mode: status`** summaries.
 
 **`locks.md`** rows are **worktree claims**: each should name **`branch`**, **`worktree_path`**,
@@ -275,11 +275,11 @@ to Git’s view — flag **stale WIP** (branch not linked) or **path drift** (pa
 **Together they describe overall interactive / manual hold state** — not every background task.
 
 Before dispatch, background work must **not** run if a lock **conflicts**: same **`subsystem`** and
-**`phase`** as the worker would use, **or** same **`branch`** as the plan’s progress (someone else
+**`phase`** as the worker would use, **or** same **`branch`** as the plan's progress (someone else
 owns that checkout), **or** matching **`plan_id`** when set.
 
 **`mode: status`:** print **`git worktree list`**, a compact **`locks.md`** summary (branch →
-reason), and stale-WIP / drift flags — nothing else for “who is running where.”
+reason), and stale-WIP / drift flags — nothing else for "who is running where."
 
 ### 2. Bootstrap the cron
 
@@ -331,7 +331,7 @@ For each entry in `locks.md`:
 
 1. Find in-flight tasks that **conflict**: same **`phase`** and **`subsystem`**, or same
    **`plan_id`** when both set, or — for **`plan-implementer` / `pr-reviewer`** — read the
-   **`PLAN-*`** **`branch`** and **`TaskStop`** if it matches the lock’s **`branch`**
+   **`PLAN-*`** **`branch`** and **`TaskStop`** if it matches the lock's **`branch`**
 2. Call `TaskStop(task_id)` when the user (or sub-skill) claimed the checkout
 3. Remove the entry from `in-flight.md`
 4. Append a **material** phase event **only if** a worker was actually stopped (one short line)
@@ -383,7 +383,7 @@ Agent({
 
 - **`mode: post-merge-dispatch`:** parse `merge_detection_task_id` from the prompt; await that task
   with `TaskGet` / `TaskOutput` until terminal. **Forbidden:** `bash sleep` for pacing — use only
-  task APIs (or the platform’s blocking task await if available).
+  task APIs (or the platform's blocking task await if available).
 - **`mode: unblock-workflow-gh`** or **`mode: merge-detection`** (alias): await the task from §5a the
   same way.
 - **`mode: run`** or **`mode: unblock-workflow`:** await the gh pass inline (since the
@@ -425,18 +425,18 @@ Subtract any subsystem with an active lock for that phase. Never auto-dispatch `
 
 **After** merge reconciliation and re-read (**`mode: post-merge-dispatch`**,
 **`mode: dispatch-only`** which skips §5 spawn) — issue **all** orchestrator dispatches in **one**
-assistant message. Do **not** await one orchestrator’s completion before starting another in this
+assistant message. Do **not** await one orchestrator's completion before starting another in this
 wave.
 
 **Always try all three phase orchestrators** in **`mode: post-merge-dispatch`** and
 **`mode: dispatch-only`**: `plan-orchestrator`, `specify-orchestrator`, and `design-orchestrator` —
 **every time**, in the same tool batch. Each prompt must include **`repo: <REPO>`** and the computed
-ready subsystem lists (use an **empty list** / “none ready” when a phase has nothing to do).
+ready subsystem lists (use an **empty list** / "none ready" when a phase has nothing to do).
 Orchestrators **no-op** safely when given no work; skipping an orchestrator because its ready set
 looks empty is **forbidden**.
 
 **Maximize breadth:** nested orchestrators must themselves fan out **every** unblocked worker in
-parallel with `run_in_background: true` — **never** serialize ready plans to “reduce noise”.
+parallel with `run_in_background: true` — **never** serialize ready plans to "reduce noise".
 
 Before each **orchestrator** `Agent` call, check `in-flight.md`: if that **orchestrator** is
 **already** running (same `worker_agent` as `plan-orchestrator` / `specify-orchestrator` /
@@ -571,5 +571,5 @@ Running this agent twice back-to-back must be safe:
 - Dispatch `release-orchestrator` without an explicit user request
 - Delete state files without explicit user confirmation
 - Skip `TaskStop` when enforcing a lock against in-flight tasks
-- Auto-stash or discard the user’s uncommitted work to bypass the stash gate
+- Auto-stash or discard the user's uncommitted work to bypass the stash gate
 - Ignore **`RUN_LOCK`** contention without **`AskUserQuestion`** (§0b **2b**) when the tool exists

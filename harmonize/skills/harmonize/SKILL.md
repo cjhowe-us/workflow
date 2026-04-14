@@ -7,12 +7,12 @@ description: >
   Requires plans to link to design docs and design docs to trace F/R/US; progress files link to plans.
   Default run restarts in-flight background tasks before the dispatch wave.
   A bare /harmonize immediately executes the harmonize master orchestrator inline in the current
-  conversation (no subagent, no approval, no “what next?” prompt). The orchestrator chains the
+  conversation (no subagent, no approval, no "what next?" prompt). The orchestrator chains the
   **unblock workflow** (**`unblock-workflow-gh`** via `plan-orchestrator` +
   **`post-merge-dispatch`**) before fanning out every unblocked worker in parallel. Phase
   orchestrators and workers still run as background tasks. Use whenever the user wants to plan,
   design, implement, review, release, or check status of anything in Harmonius, or whenever
-  “harmonize” is mentioned. After killed background task trees, `/harmonize reset-in-flight`
+  "harmonize" is mentioned. After killed background task trees, `/harmonize reset-in-flight`
   clears stale `in-flight.md` rows before the next `run`; hosts without `TaskList`/`TaskStop`
   flush the registry during restart sweep.
 ---
@@ -58,7 +58,7 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
 **must** start work **immediately** — this is the core product behavior.
 
 1. **No approval gate** — do **not** ask which plan or subsystem to prioritize, do **not** wait
-   for the user to confirm a “go” after printing status. `/harmonize` is non-interactive.
+   for the user to confirm a "go" after printing status. `/harmonize` is non-interactive.
 2. **Inline execution** — execute the `agents/harmonize.md` playbook **directly** in the current
    conversation. Do **not** dispatch the master orchestrator as a background `Task` or `Agent`.
    Phase orchestrators and workers are still dispatched as background tasks.
@@ -83,7 +83,7 @@ Use **`/harmonize status`** (or `status` argument) only when the user wants a re
 ## Nested parallelism (maximum breadth)
 
 Orchestrators should build **deep trees** of **`Agent` / `Task`** calls with **`run_in_background: true`**: one
-branch per unblocked plan (and per specify/design worker), not sequential “one plan at a time”
+branch per unblocked plan (and per specify/design worker), not sequential "one plan at a time"
 scheduling. **Forbidden** for pacing: `bash sleep` or long idle loops in orchestrators — use task
 APIs, completion notifications, or the next harmonize reconciliation pass (`in-flight.md` §3). A
 full **`run`** also **stops** stale runners via §3 restart sweep before issuing a new wave.
@@ -229,7 +229,7 @@ implementation.
 | Downstream | Must link to (upstream) |
 |------------|-------------------------|
 | Design doc under `docs/design/` | **Features** (`F-X.Y.Z`), **requirements** (`R-X.Y.Z`), and **user stories** (`US-X.Y.Z`) — typically the Requirements Trace table at the top of the doc, or the same IDs repeated in front matter where templates allow. Integration designs cite the F/R/US that justify the cross-subsystem boundary. |
-| Implementation plan under `docs/plans/` | One or more **design document paths** in plan front matter (`design_documents`). Those designs must already trace to F/R/US as above. The plan’s **`features`**, **`requirements`**, and **`test_cases`** fields must be **consistent** with the linked design docs (no IDs that do not appear in the trace chain). |
+| Implementation plan under `docs/plans/` | One or more **design document paths** in plan front matter (`design_documents`). Those designs must already trace to F/R/US as above. The plan's **`features`**, **`requirements`**, and **`test_cases`** fields must be **consistent** with the linked design docs (no IDs that do not appear in the trace chain). |
 
 **Orchestrator / worker expectations:**
 
@@ -270,7 +270,7 @@ away from that checkout and scope.
 
 ## Worktree locks (`docs/plans/locks.md`)
 
-Each row is **one checkout’s claim**: **`branch`**, **`worktree_path`** (from `git worktree list`),
+Each row is **one checkout's claim**: **`branch`**, **`worktree_path`** (from `git worktree list`),
 **`phase`**, **`subsystem`**, optional **`plan_id`**, **`owner`**, **`claimed_at`**, and a
 **short `reason`** line stating what that worktree is doing.
 
@@ -393,7 +393,7 @@ the `harmonize` master orchestrator inline with default mode `run` so it:
    `docs/plans/index.md` when the orchestrator recomputes order — **no** worker dispatch in
    **`unblock-workflow-gh`**.
 3. After merge reconciliation, runs the same **restart sweep** on other runners, then re-reads
-   progress and computes each phase’s ready set.
+   progress and computes each phase's ready set.
 4. Dispatches **every** phase orchestrator that has ready work **in one parallel batch** (same
    message, multiple `Agent` calls): **`plan-orchestrator`** **`dispatch-only`** plus
    **`specify-orchestrator`** / **`design-orchestrator`** when applicable. **Per-topic** ordering
