@@ -103,7 +103,7 @@ Use **`/harmonize status`** (or `status` argument) only when the user wants a re
 
 ## Nested parallelism (maximum breadth)
 
-Orchestrators should build **deep trees** of **`Agent(..., run_in_background: true)`** calls: one
+Orchestrators should build **deep trees** of **`Agent` / `Task`** calls with **`run_in_background: true`**: one
 branch per unblocked plan (and per specify/design worker), not sequential “one plan at a time”
 scheduling. **Forbidden** for pacing: `bash sleep` or long idle loops in orchestrators — use task
 APIs, completion notifications, or the next harmonize reconciliation pass (`in-flight.md` §3). A
