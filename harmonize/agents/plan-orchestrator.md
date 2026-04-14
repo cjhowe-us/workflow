@@ -54,10 +54,10 @@ If any are missing, stop and report to the user.
 
 | Mode | Prompt contains | Behavior |
 |------|-----------------|----------|
-| `run` | "run" or nothing specific | Full cycle: merge detect + dispatch ready + dispatch review |
+| `run` | "run" (standalone only) | Full cycle: merge detect (§5) + dispatch (§6–8) — avoid when the harmonize master already ran merge-detection serially |
 | `status` | "status" | Read state only, no dispatch |
-| `merge-detection` | "merge-detection" | Check submitted PRs + dispatch newly unblocked |
-| `dispatch-only` | "dispatch" | Skip merge detect, dispatch ready + review sets |
+| `merge-detection` | "merge-detection" | **Gh-only:** check every implementation-plan PR, update `PLAN-*` progress, archive merges, refresh index — **no** worker dispatch |
+| `dispatch-only` | "dispatch-only" or "dispatch" | Skip §5; compute ready/review sets and dispatch workers |
 
 ## Execution flow
 
@@ -85,20 +85,35 @@ silently fix them.
 Read every file under `docs/plans/progress/`. Match each progress file to its plan by `plan_id`.
 Warn on orphans (progress without matching plan).
 
-### 5. Merge detection
+### 5. Merge detection (GitHub CLI)
 
-For each plan with `status: submitted`:
+Purpose: reconcile **implementation plan** work with GitHub — every `docs/plans/progress/PLAN-*.md`
+that records a PR must be checked so merges unblock dependents before any new work dispatches.
+
+For each **non-archived** `PLAN-*` progress file that has `pr_number` **or** a parseable `pr_url`
+(GitHub pull request link):
 
 ```bash
-gh pr view <pr_number> --json state,mergedAt,mergeCommit
+gh pr view <pr_number> --json state,mergedAt,mergeCommit,closedAt
 ```
 
-If `state == MERGED`:
+(Resolve `pr_number` from frontmatter; if only `pr_url` is set, extract the PR number from the URL.)
 
-1. Append an event log entry to the progress file: `<timestamp> — merged at <mergedAt>`
-2. Move the progress file to `docs/plans/progress/archive/<plan_id>.md`
-3. Mark the plan as done in memory (done = merged, for dependency satisfaction purposes)
-4. Unblock its dependents (decrement their effective in-degree)
+Interpretation:
+
+- **`MERGED`** — append an event log entry (`<timestamp> — merged at <mergedAt>`), move the progress
+  file to `docs/plans/progress/archive/<plan_id>.md`, mark the plan **done** in memory for
+  dependency satisfaction, decrement in-degree of dependents.
+- **`CLOSED` without merge** — append event log; **do not** archive as done; leave status for a
+  human or a later pass (optional: set a `closed_unmerged` note in the event log).
+- **`OPEN`** — no change.
+
+Run this for **all** statuses that may still point at a live PR (`submitted`, `code_complete`,
+`started`, etc.), not only `submitted`, so out-of-band merges are caught.
+
+If **`merge-detection` mode** (prompt): after §5 (and §9 if you recompute `index.md`), **skip §6–8**
+entirely — **no** `plan-implementer` / `pr-reviewer` dispatch. Return counts of merges and updated
+plans.
 
 ### 6. Compute ready set
 
@@ -184,7 +199,7 @@ Running the orchestrator twice back-to-back must be safe:
 |-------|----------|
 | Worker fails | Leave progress in current state, report, do not auto-retry |
 | Invalid plan | Skip with warning, do not block others |
-| GitHub unreachable | Skip merge detection, proceed with dispatch |
+| GitHub unreachable | Log warning; in `merge-detection` mode stop after best-effort; in `dispatch-only` proceed |
 | Cycle in plan tree | Stop, report, dispatch nothing |
 | `gh` not authenticated | Stop, ask user to run `gh auth login` |
 | Uncommitted changes on main | Stop, ask user to commit or stash |

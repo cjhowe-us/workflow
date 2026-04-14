@@ -5,8 +5,9 @@ description: >
   development lifecycle: feature/requirement/user-story ideation, hierarchical design, design
   review, implementation planning, hierarchical TDD execution, PR review, and release.
   A bare /harmonize immediately dispatches the harmonize master agent in the background (no
-  approval, no “what next?” prompt) so unblocked work starts at once in parallel subtrees,
-  respecting topological order. Routes user intent to phase-specific sub-skills for interactive
+  approval, no “what next?” prompt). The master runs merge detection serially (gh on implementation
+  plan PRs, updates PLAN-* progress), then fans out all unblocked SDLC work in parallel. Routes user
+  intent to phase-specific sub-skills for interactive
   work while a background supervisor runs the orchestration tree asynchronously and opens many
   small draft PRs for human review. Use whenever the user wants to plan, design, implement,
   review, release, or check status of anything in Harmonius, or whenever "harmonize" is mentioned.
@@ -46,13 +47,33 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
    `run_in_background: true`, and a prompt that begins with `mode: run` plus the repo path. You may
    add a one-line user-facing ack (“Dispatched harmonize run in background.”) **without** waiting
    for a reply.
-4. **Parallelism** — the master agent fans out **all** independent orchestrators and workers in
-   **topological waves** (dependency-respecting). Within each wave, it issues **multiple** `Agent`
-   calls in **one** message. Never serialize orchestrator dispatches “one phase at a time” when more
-   than one phase has ready work.
+4. **Serial merge, then parallel unblock** — the master agent **first** runs **`plan-orchestrator`**
+   in **`merge-detection`** mode to completion (`gh` on every `PLAN-*` with a PR), **re-reads**
+   progress, **then** issues **one** parallel batch of orchestrators (`plan-orchestrator`
+   **`dispatch-only`** + specify + design as needed). Never skip serial merge before dispatch in
+   `mode: run`.
 
 Use **`/harmonize status`** (or `status` argument) only when the user wants a read-only summary with
 **no** background dispatch.
+
+## `/harmonize-*` sub-skills (interactive)
+
+The master **`harmonize`** skill is the default **autonomous** entry. Each **`/harmonize-<phase>`**
+command loads a **foreground** sub-skill for guided work; those skills **claim coarse locks** and
+may use `AskUserQuestion`. Route by argument per the table in
+[Routing on invocation](#routing-on-invocation).
+
+| Slash / skill | Role |
+|---------------|------|
+| `harmonize-specify` | Interactive F / R / US authoring |
+| `harmonize-design` | Interactive design docs |
+| `harmonize-plan` | Interactive implementation plan authoring |
+| `harmonize-implement` | Interactive **Phase 3** TDD (`plan-implementer` with user pacing); use when the user wants step-by-step control. **`/harmonize run`** still auto-dispatches **`plan-implementer`** in the background for ready plans without loading this sub-skill |
+| `harmonize-review` | Interactive draft PR review |
+| `harmonize-release` | Interactive release (explicit user request only) |
+
+When routing **`implement`**, call `Skill(harmonize-implement, <plan_id>)` so the implement playbook
+owns locks and pacing.
 
 ## The user never edits directly
 
@@ -207,15 +228,18 @@ switch.
 A bare `/harmonize` (no argument) must **not** stop at status-only or merge-detect alone. Dispatch
 the `harmonize` master agent in background with default mode `run` so it:
 
-1. Reconciles state, runs merge detection, and computes each phase’s ready set
-2. Dispatches **every** phase orchestrator that has ready work **in one parallel batch** (same
-   message, multiple `Agent` calls). **Per-topic** ordering stays **Specify → Design → Plan → TDD**;
-   **across subsystems and independent topics**, phases run **concurrently**.
-3. Phase **3** `plan-orchestrator` receives a prompt that includes **merge detection plus** dispatch
-   so PR merges unblock dependents in the same pass without waiting for a second orchestrator
-   invocation.
-4. Within Phase 3, honors **dependency order** in `docs/plans/index.md` — only plans whose
-   prerequisites are merged / satisfied advance; `plan-orchestrator` owns the ready set
+1. Reconciles state (locks, in-flight, phase files, `PLAN-*` progress).
+2. Runs **`plan-orchestrator`** **`merge-detection`** **serially to completion** — for each
+   implementation plan progress file with a PR, **`gh pr view`**; archive merged plans; update event
+   logs; refresh `docs/plans/index.md` when the orchestrator recomputes order — **no** worker
+   dispatch in this step.
+3. Re-reads progress and computes each phase’s ready set.
+4. Dispatches **every** phase orchestrator that has ready work **in one parallel batch** (same
+   message, multiple `Agent` calls): **`plan-orchestrator`** **`dispatch-only`** plus
+   **`specify-orchestrator`** / **`design-orchestrator`** when applicable. **Per-topic** ordering
+   stays **Specify → Design → Plan → TDD**; **across subsystems**, work runs **concurrently**.
+5. Within Phase 3, **dependency order** in `docs/plans/index.md` is enforced by the ready set inside
+   `plan-orchestrator`.
 
 Foreground may print a one-line acknowledgment; the master agent returns the full summary when the
 pass completes.
@@ -245,8 +269,8 @@ The cron fires every 15 minutes on off-minutes; Claude receives the prompt, the 
 `/harmonize` to this skill, and the skill routes to `run` mode which dispatches the harmonize master
 agent in background.
 
-If `CronList` or `CronCreate` is unavailable in the master agent, it logs and continues — merge
-detection still runs inside `plan-orchestrator` for that pass.
+If `CronList` or `CronCreate` is unavailable in the master agent, it logs and continues — **serial**
+merge-detection (§5 of the master playbook) still runs that pass before any dispatch.
 
 ## Manual merge-detection backup
 

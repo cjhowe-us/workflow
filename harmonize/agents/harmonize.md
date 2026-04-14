@@ -75,11 +75,11 @@ Parse the prompt for a mode keyword. Default is `run`.
 
 | Mode | Behavior |
 |------|----------|
-| `run` | Full cycle: reconcile, enforce locks, **one parallel wave** of phase orchestrators; Phase 3 always runs `plan-orchestrator` (merge-detect + dispatch); Phases 1–3 fan out together when each has ready work |
+| `run` | Full cycle: reconcile, enforce locks, **serial** `plan-orchestrator` **merge-detection** (gh, wait until done), re-read state, then **one parallel wave** of orchestrators (`plan-orchestrator` **dispatch-only** + others) |
 | `status` | Read state, print summary, do not dispatch |
 | `stop` | Stop every in-flight task, keep locks, report |
-| `merge-detection` | Check only submitted PRs for merges, advance merged, dispatch unblocked |
-| `dispatch-only` | Skip merge detection, dispatch ready work |
+| `merge-detection` | **Only** serial `plan-orchestrator` merge-detection (§5); re-read state; report — no fan-out |
+| `dispatch-only` | Skip merge detection; compute ready sets and parallel-dispatch orchestrators |
 | `resume <phase> <subsystem>` | After a lock release, re-scan and dispatch the resource |
 
 ## Task tracking (owner convention)
@@ -123,8 +123,8 @@ Call `CronList`. Look for a job whose prompt contains `[harmonize-merge-detect]`
 bootstrap" section.
 
 If `CronList` / `CronCreate` is unavailable or fails after a best effort, log a warning in the
-phase-plan event log (or stdout summary) and **continue**. Cron is optional; the `plan-orchestrator`
-dispatch still performs merge detection so PRs advance without the scheduler.
+phase-plan event log (or stdout summary) and **continue**. Cron is optional; every `mode: run` pass
+still performs **serial** merge-detection before dispatch so PRs advance without the scheduler.
 
 ### 3. Reconcile in-flight tasks
 
@@ -149,7 +149,37 @@ For each entry in `locks.md`:
 
 Under NO circumstances dispatch new work on a locked `(phase, subsystem)` pair.
 
-### 5. Compute the phase ready set
+### 5. Serial merge detection (implementation plans via `gh`)
+
+For **`mode: run`** (before the parallel wave) and **`mode: merge-detection`** (standalone pass),
+reconcile merged Phase 3 PRs so progress files and the dependency DAG match GitHub.
+
+Skip this entire step in **`mode: dispatch-only`**. In **`mode: merge-detection`**, this step **is**
+the main work (then jump to **§8** / **§9** — skip **§6–7**).
+
+Procedure:
+
+1. If a `plan-orchestrator` task is **already** in `in-flight.md` with a merge-detection prompt,
+   wait for it to finish instead of spawning a duplicate.
+2. Otherwise dispatch **exactly one** background agent:
+
+```text
+Agent({
+  description: "plan-orchestrator merge-detection (serial)",
+  subagent_type: "plan-orchestrator",
+  prompt: "mode: merge-detection — gh reconciliation for all PLAN-* progress with PRs; no worker dispatch",
+  run_in_background: true
+})
+```
+
+3. **Wait until that task completes** — poll `TaskList` / `TaskOutput` / completion notification. Do
+   **not** issue any other `Agent` for new orchestration work in the same turn as this dispatch.
+4. **Re-read** `docs/plans/progress/PLAN-*.md`, `docs/plans/index.md`, and `phase-plan.md` so the
+   ready set reflects merges.
+
+### 6. Compute the phase ready set
+
+Skip in **`mode: merge-detection`** (no dispatch wave).
 
 **Per topic**, readiness follows **Specify → Design → Plan → TDD/Review**.
 **Across different subsystems and independent topics**, compute ready sets **in parallel** — do not
@@ -172,21 +202,21 @@ For each phase, compute which subsystems are ready to advance:
 
 Subtract any subsystem with an active lock for that phase. Never auto-dispatch `release`.
 
-### 6. Dispatch phase orchestrators (one parallel wave)
+### 7. Dispatch phase orchestrators (parallel wave)
 
-Issue **all** orchestrator dispatches for this pass in **one** assistant message — **never** await
-one orchestrator’s completion before starting another when each has work or when Phase 3 needs merge
-detection.
+**After** §5 completes (for `mode: run`) or immediately (for `mode: dispatch-only`), issue **all**
+orchestrator dispatches in **one** assistant message. Do **not** await one orchestrator’s completion
+before starting another in this wave.
 
 Before each `Agent` call, check `in-flight.md`: if that orchestrator is **already** running for this
-phase (same `worker_agent`, task not completed), **skip** spawning a duplicate.
+pass (same `worker_agent`, task not completed), **skip** spawning a duplicate.
 
-**Always** include **exactly one** `plan-orchestrator` dispatch per `run` pass so merged PRs unblock
-dependents even if the ready set is empty. Its prompt must include **both** merge detection and
-worker dispatch, e.g.:
+**Always** include **exactly one** `plan-orchestrator` dispatch in **`mode: run`** and
+**`mode: dispatch-only`** so Phase 3 advances. Merge detection already ran in §5 — use **only**
+`dispatch-only`:
 
 ```text
-mode: run — merge-detection then dispatch ready + review sets per plan-orchestrator playbook
+mode: dispatch-only — dispatch ready plan-implementer + pr-reviewer sets per playbook
 ```
 
 **Additionally**, if Phase 1 has ready subsystems, dispatch `specify-orchestrator` in the same
@@ -196,9 +226,9 @@ Example batch (adjust lists to computed ready sets):
 
 ```text
 Agent({
-  description: "Phase 3 plan pass (merge + dispatch)",
+  description: "Phase 3 plan dispatch (post-merge)",
   subagent_type: "plan-orchestrator",
-  prompt: "mode: run — merge-detection then dispatch ready + review",
+  prompt: "mode: dispatch-only — ready + review workers",
   run_in_background: true
 })
 Agent({
@@ -215,10 +245,12 @@ Agent({
 })
 ```
 
+In **`mode: merge-detection`**, **skip** this §7 entirely.
+
 Immediately after each dispatch returns, write the task_id to `in-flight.md` with `phase`,
 `subsystem`, `worker_agent`, `started_at`, and `parent_task_id` (this agent's parent task id).
 
-### 7. Write phase-progress updates
+### 8. Write phase-progress updates
 
 Update each per-phase progress file:
 
@@ -226,7 +258,7 @@ Update each per-phase progress file:
 - Append an event log entry for this pass
 - Update subsystem rows where counts changed
 
-### 8. Report summary
+### 9. Report summary
 
 Return the SDLC status summary format defined in the `harmonize` skill. Complete the parent task for
 this pass.

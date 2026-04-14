@@ -37,7 +37,7 @@ claude plugin uninstall harmonize
 
 | Skill | Purpose |
 |-------|---------|
-| `harmonize` | Master entry — `/harmonize` immediately backgrounds full `run` (no approval); parallel phase orchestrators |
+| `harmonize` | Master entry — serial `gh` merge-detection on plan PRs, then parallel SDLC orchestrators |
 | `harmonize-specify` | Interactive Phase 1: feature / requirement / user-story ideation |
 | `harmonize-design` | Interactive Phase 2: subsystem / interface / component / integration design |
 | `harmonize-plan` | Interactive Phase 3a: implementation plan authoring |
