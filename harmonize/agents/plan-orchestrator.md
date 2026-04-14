@@ -50,6 +50,13 @@ bootstrap flow. Do not act on harmonize state from memory — always load the sk
 
 If any are missing, stop and report to the user.
 
+## Stash gate
+
+Before any work in **`run`**, **`merge-detection`**, or **`dispatch-only`**, verify the primary repo
+(same path as Prerequisites): **`git rev-parse --abbrev-ref HEAD`** is **`main`**, and
+**`git status --porcelain`** is empty. If not, **stop** — same message as harmonize master **§0**
+(stash or commit, then re-run). **Skip** for **`status`**.
+
 ## Invocation modes
 
 | Mode | Prompt contains | Behavior |
@@ -131,12 +138,12 @@ A plan is in the **review set** if `status == code_complete`.
 
 ### 8. Dispatch workers in parallel
 
-For **every** plan in the ready set: spawn a `plan-implementer` via `Agent` with **`run_in_background:
-true`**, passing `plan_id` and `plan_path` in the prompt. Issue **all** implementer calls in **one**
-message — one nested background tree per plan.
+For **every** plan in the ready set: spawn a `plan-implementer` via `Agent` with
+**`run_in_background: true`**, passing `plan_id` and `plan_path` in the prompt. Issue **all**
+implementer calls in **one** message — one nested background tree per plan.
 
-For **every** plan in the review set: spawn a `pr-reviewer` the same way (**`run_in_background:
-true`**), batched in that same message.
+For **every** plan in the review set: spawn a `pr-reviewer` the same way
+(**`run_in_background: true`**), batched in that same message.
 
 Before each dispatch, re-read that plan’s progress file once to avoid double-spawning.
 
@@ -209,7 +216,7 @@ Running the orchestrator twice back-to-back must be safe:
 | GitHub unreachable | Log warning; in `merge-detection` mode stop after best-effort; in `dispatch-only` proceed |
 | Cycle in plan tree | Stop, report, dispatch nothing |
 | `gh` not authenticated | Stop, ask user to run `gh auth login` |
-| Uncommitted changes on main | Stop, ask user to commit or stash |
+| Stash gate failure (not `main` or dirty tree) | Stop — user must stash/commit per harmonize §0 |
 
 ## When to escalate to the user
 
@@ -217,7 +224,7 @@ Running the orchestrator twice back-to-back must be safe:
 - A cycle is detected in the plan tree
 - An invariant violation requires human judgment
 - `gh` is not authenticated
-- The repository has uncommitted changes on main (safety check)
+- Stash gate failed (not `main` or dirty primary checkout)
 
 ## Never do
 

@@ -199,7 +199,7 @@ The orchestrator will dispatch `pr-reviewer` for this plan on its next invocatio
 
 ## Worktree rules
 
-- All code changes live in the worktree
+- All code changes live in the worktree — the **primary** Harmonius checkout stays on **`main`**
 - Progress file updates go to the main repo checkout (progress lives in `docs/plans/progress/`, not
   in a per-plan worktree)
 - Never run git commands in the main repo from this worker except to update the progress file

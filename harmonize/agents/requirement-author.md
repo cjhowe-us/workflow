@@ -69,21 +69,27 @@ grep -rh "^| R-" /Users/cjhowe/Code/harmonius/docs/requirements/ | \
 Requirement IDs typically match feature numbering: feature `F-1.1.1` yields `R-1.1.1`, `R-1.1.1a`,
 `R-1.1.1b`, etc.
 
-### 5. Open draft PR
+### 5. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/specify-<subsystem>-<topic>-req
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/specify-<subsystem>-<topic>-requirement
+BRANCH=feat/specify-<subsystem>-<topic>-req
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[specify] <subsystem>:<topic> — requirements"
-git push -u origin feat/specify-<subsystem>-<topic>-req
+git push -u origin "$BRANCH"
 gh pr create --draft \
   --base main \
-  --head feat/specify-<subsystem>-<topic>-req \
+  --head "$BRANCH" \
   --title "[specify] <subsystem>:<topic> — requirements" \
   --body "Authors docs/requirements/<subsystem>/<topic>.md via requirement-author."
 ```
 
-Capture PR number and URL. Update `docs/plans/in-flight.md`.
+Capture PR number and URL. Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 6. Draft the requirement file
 
@@ -96,7 +102,7 @@ Load `skills/document-templates/templates/requirement.md`. Fill:
 Each requirement must be verifiable, singular, unambiguous, and traced. No weasel words (fast,
 reasonable, usually).
 
-### 7. Write, format, commit, push
+### 7. Write, format, commit, push (inside `$WT`)
 
 ```bash
 mkdir -p docs/requirements/<subsystem>
@@ -111,16 +117,21 @@ git commit -m "[specify] <subsystem>:<topic> — add requirements"
 git push
 ```
 
-### 8. Update phase progress
+### 8. Update phase progress (primary repo)
 
-Update `docs/plans/progress/phase-specify.md` similar to feature-author:
+Update `$PRIMARY/docs/plans/progress/phase-specify.md`:
 
 - Increment requirement count for `<subsystem>`
 - Append PR number to Open PRs
 - Update `last_updated`
 - Append event log entry
 
-Commit to `main` directly (phase progress is source of truth), not to your feature branch.
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-specify.md
+git -C "$PRIMARY" commit -m "[specify] update phase-specify.md for <subsystem>/<topic> reqs"
+git -C "$PRIMARY" push origin main
+```
 
 ### 9. Return
 

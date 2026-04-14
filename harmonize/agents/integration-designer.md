@@ -59,12 +59,17 @@ For each subsystem in `subsystems`:
 - Extract types, data structures, frame-boundary data flow
 - Note any existing mention of the other subsystem(s)
 
-### 4. Open draft PR
+### 4. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
 BRANCH=feat/design-integration-$(echo "<subsystems>" | tr ' ' '-')-<topic>
-git checkout -b "$BRANCH"
+WT="$WT_ROOT/$(echo "$BRANCH" | sed 's|^feat/||')"
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[design] integration <subsystems>:<topic>"
 git push -u origin "$BRANCH"
 gh pr create --draft --base main --head "$BRANCH" \
@@ -72,7 +77,7 @@ gh pr create --draft --base main --head "$BRANCH" \
   --body "Authors docs/design/integration/<topic>.md via integration-designer."
 ```
 
-Update `docs/plans/in-flight.md`.
+Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 5. Draft the integration design
 
@@ -99,7 +104,7 @@ SKILL.md:
 - Platform differences addressed
 - Integration tests cover the boundary
 
-### 6. Write, format, commit, push
+### 6. Write, format, commit, push (inside `$WT`)
 
 ```bash
 mkdir -p docs/design/integration
@@ -109,14 +114,19 @@ git commit -m "[design] integration <subsystems>:<topic> — add integration des
 git push
 ```
 
-### 7. Update phase progress
+### 7. Update phase progress (primary repo)
 
-Update `docs/plans/progress/phase-design.md` for each involved subsystem:
+Update `$PRIMARY/docs/plans/progress/phase-design.md` for each involved subsystem:
 
 - Add PR number to Open PRs for each subsystem
 - Append an event log entry naming all involved subsystems
 
-Commit to `main` directly.
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-design.md
+git -C "$PRIMARY" commit -m "[design] phase-design integration <subsystems>:<topic>"
+git -C "$PRIMARY" push origin main
+```
 
 ### 8. Return
 

@@ -63,21 +63,27 @@ Abort if `(phase: design, subsystem)` is locked.
 - `docs/architecture.md` — subsystem's place in the overall architecture
 - Sibling design docs in `docs/design/<subsystem>/` for consistency
 
-### 4. Open draft PR
+### 4. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/design-<subsystem>-<topic>
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/design-<subsystem>-<topic>-subsystem
+BRANCH=feat/design-<subsystem>-<topic>
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[design] <subsystem>:<topic> — subsystem design"
-git push -u origin feat/design-<subsystem>-<topic>
+git push -u origin "$BRANCH"
 gh pr create --draft \
   --base main \
-  --head feat/design-<subsystem>-<topic> \
+  --head "$BRANCH" \
   --title "[design] <subsystem>:<topic> — subsystem design" \
   --body "Authors docs/design/<subsystem>/<topic>.md via subsystem-designer."
 ```
 
-Update `docs/plans/in-flight.md`.
+Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 5. Draft the design document
 
@@ -110,16 +116,21 @@ git commit -m "[design] <subsystem>:<topic> — add subsystem design"
 git push
 ```
 
-### 8. Update phase progress
+### 8. Update phase progress (primary repo)
 
-Update `docs/plans/progress/phase-design.md`:
+Update `$PRIMARY/docs/plans/progress/phase-design.md`:
 
 - Set `<subsystem>` status to `in_progress`
 - Append PR number
 - Update `last_updated`
 - Event log entry
 
-Commit to `main` directly.
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-design.md
+git -C "$PRIMARY" commit -m "[design] update phase-design.md for <subsystem>/<topic>"
+git -C "$PRIMARY" push origin main
+```
 
 ### 9. Return
 

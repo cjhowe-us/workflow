@@ -53,17 +53,28 @@ TaskCreate({
 
 Abort if `(phase: design, subsystem)` is locked.
 
-### 3. Checkout the existing branch
+### 3. Work on the existing PR branch (never checkout inside primary repo)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
 BRANCH=$(gh pr view <pr_number> --json headRefName -q .headRefName)
-git fetch origin "$BRANCH":"$BRANCH"
-git checkout "$BRANCH"
+git -C "$PRIMARY" fetch origin "$BRANCH"
+```
+
+Find a worktree already on `$BRANCH` via `git -C "$PRIMARY" worktree list`. If one exists, `cd` to
+that path. If **none**, create a dedicated reviser worktree (same branch may only be linked once):
+
+```bash
+WT=$WT_ROOT/design-reviser-pr-<pr_number>
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" worktree add "$WT" "$BRANCH"
+cd "$WT"
 git pull
 ```
 
-Do NOT create a new branch. Do NOT open a new PR.
+Do NOT create a new branch. Do NOT open a new PR. Do NOT `git checkout` a feature branch inside
+`$PRIMARY`.
 
 ### 4. Read findings and design doc
 
@@ -111,9 +122,17 @@ design-reviser: addressed <N> findings.
 Blockers: <M>. Majors: <O>. Nits remaining: <nits_remaining>.
 ```
 
-### 9. Update phase progress
+### 9. Update phase progress (primary repo)
 
-Append event log entry to `phase-design.md`: revision committed, findings addressed.
+Append event log entry to `$PRIMARY/docs/plans/progress/phase-design.md`: revision committed,
+findings addressed.
+
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-design.md
+git -C "$PRIMARY" commit -m "[design] phase-design design-reviser PR <pr_number>"
+git -C "$PRIMARY" push origin main
+```
 
 ### 10. Return
 

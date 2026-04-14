@@ -59,19 +59,25 @@ Abort if `(phase: design, subsystem)` is locked.
 - Sibling design docs for API style consistency
 - `docs/design/constraints.md` — rules around static dispatch, dyn, unsafe, async
 
-### 4. Open draft PR
+### 4. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/design-<subsystem>-<topic>-api
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/design-<subsystem>-<topic>-api
+BRANCH=feat/design-<subsystem>-<topic>-api
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[design] <subsystem>:<topic> — API section"
-git push -u origin feat/design-<subsystem>-<topic>-api
-gh pr create --draft --base main --head feat/design-<subsystem>-<topic>-api \
+git push -u origin "$BRANCH"
+gh pr create --draft --base main --head "$BRANCH" \
   --title "[design] <subsystem>:<topic> — API" \
   --body "Drafts the API Design section in docs/design/<subsystem>/<topic>.md."
 ```
 
-Update `docs/plans/in-flight.md`.
+Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 5. Draft the API Design section
 
@@ -94,7 +100,10 @@ Follow the project coding-standard rules from the `rust` skill:
 - Use `glam` for math, `SmallVec` for small inline allocations
 - Minimize `unsafe`
 
-### 6. Write, format, commit, push
+### 6. Write, format, commit, push (inside `$WT`)
+
+Resolve `<design_path>` relative to `$WT` (same path as in the primary repo, e.g.
+`docs/design/<subsystem>/<topic>.md`).
 
 ```bash
 rumdl fmt <design_path>
@@ -103,10 +112,17 @@ git commit -m "[design] <subsystem>:<topic> — API design section"
 git push
 ```
 
-### 7. Update phase progress
+### 7. Update phase progress (primary repo)
 
-Append an event log entry to `phase-design.md`. Do NOT change status — the subsystem-designer or
-orchestrator owns status transitions.
+Append an event log entry to `$PRIMARY/docs/plans/progress/phase-design.md`. Do NOT change status —
+subsystem-designer or orchestrator owns status transitions.
+
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-design.md
+git -C "$PRIMARY" commit -m "[design] phase-design event <subsystem>/<topic> API"
+git -C "$PRIMARY" push origin main
+```
 
 ### 8. Return
 

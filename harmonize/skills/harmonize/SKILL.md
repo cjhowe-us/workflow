@@ -64,6 +64,25 @@ branch per unblocked plan (and per specify/design worker), not sequential “one
 scheduling. **Forbidden** for pacing: `bash sleep` or long idle loops in orchestrators — use task
 APIs, completion notifications, or the next harmonize reconciliation pass (`in-flight.md` §3).
 
+## Stash gate (clean `main`)
+
+Before **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, the harmonize master
+(and `plan-orchestrator` in those modes) requires:
+
+- `HEAD` on **`main`**
+- **`git status --porcelain`** empty in the primary Harmonius checkout
+
+If dirty, **stop** — no orchestrator dispatch. The user runs
+**`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
+**`stop`**, and **`post-merge-dispatch`** skip this gate (continuation after merge reconciliation).
+
+## Worktree isolation
+
+All **specify**, **design**, and **plan TDD** PR branches are created via **`git worktree add`**
+under `../harmonius-worktrees/` so agents never **`git checkout -b`** inside the primary repo. The
+primary checkout stays on **`main`** for coordination; **`plan-implementer`** already builds
+per-plan worktrees for code.
+
 ## `/harmonize-*` sub-skills (interactive)
 
 The master **`harmonize`** skill is the default **autonomous** entry. Each **`/harmonize-<phase>`**

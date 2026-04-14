@@ -44,9 +44,9 @@ prioritization, or “should I proceed?”. Start work immediately. Only escalat
 **unrecoverable** blocks (e.g. `gh` not authenticated, corrupted state file, dependency cycle) where
 no safe automated action exists.
 
-If the repo has uncommitted changes on `main`, **append a warning** to the relevant phase-progress
-event log and **continue** dispatching all work that does not require a clean tree — do not halt the
-run waiting for the user to stash.
+**Stash gate:** modes that mutate orchestration state (**§0**) require a **clean** primary checkout
+and **`main`** `HEAD`. Do **not** auto-stash — the user must commit or stash before `/harmonize`.
+**`post-merge-dispatch`** skips §0 (merge reconciliation may have just updated `docs/plans/`).
 
 ## Load the harmonize skill first
 
@@ -68,6 +68,10 @@ memory — state and conventions live in the skill.
 
 On first run, if any state file is missing, create it from its template in the `document-templates`
 skill. Never overwrite an existing state file.
+
+**Worktree isolation:** PR branches for specify, design, and plan implementation are created in
+**git worktrees** under `../harmonius-worktrees/` so the primary checkout stays on `main`. See
+worker agent playbooks.
 
 ## Invocation modes
 
@@ -103,6 +107,32 @@ TaskCreate({
 Create intermediary tasks for each step below, update them pending → in_progress → completed.
 
 ## Execution flow
+
+### 0. Stash gate (clean primary checkout)
+
+When **`mode`** is **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, run this
+**before** any other step. **Skip** for **`status`**, **`stop`**, and **`post-merge-dispatch`**.
+
+Let `REPO` be the repository path from Prerequisites (default `/Users/cjhowe/Code/harmonius`).
+
+1. Verify integration branch:
+
+   ```bash
+   git -C "$REPO" rev-parse --abbrev-ref HEAD
+   ```
+
+   If the result is **not** `main`, **stop** and report — checkout `main` before `/harmonize`.
+
+2. Verify clean working tree:
+
+   ```bash
+   git -C "$REPO" status --porcelain
+   ```
+
+   If output is **non-empty**, **stop**. Do **not** dispatch orchestrators or workers. Tell the user
+   the primary checkout must be clean; they should **`git stash push -u -m "harmonize-gate"`** (or
+   commit), confirm `git status` is clean on `main`, then re-run `/harmonize`. Never run `git stash`
+   on the user’s behalf.
 
 ### 1. Read all state
 
@@ -236,21 +266,22 @@ Subtract any subsystem with an active lock for that phase. Never auto-dispatch `
 
 ### 7. Dispatch phase orchestrators (parallel wave)
 
-**After** merge reconciliation and re-read (**`mode: post-merge-dispatch`**, **`mode: dispatch-only`**
-which skips §5 spawn) — issue **all** orchestrator dispatches in **one** assistant message. Do **not**
-await one orchestrator’s completion before starting another in this wave.
+**After** merge reconciliation and re-read (**`mode: post-merge-dispatch`**,
+**`mode: dispatch-only`** which skips §5 spawn) — issue **all** orchestrator dispatches in **one**
+assistant message. Do **not** await one orchestrator’s completion before starting another in this
+wave.
 
 **Maximize breadth:** nested orchestrators (`plan-orchestrator`, `specify-orchestrator`,
 `design-orchestrator`) must themselves fan out **every** unblocked worker (`plan-implementer`,
-`pr-reviewer`, phase authors) in parallel with `run_in_background: true` — **never** serialize
-ready plans to “reduce noise”.
+`pr-reviewer`, phase authors) in parallel with `run_in_background: true` — **never** serialize ready
+plans to “reduce noise”.
 
 Before each `Agent` call, check `in-flight.md`: if that orchestrator is **already** running for this
 pass (same `worker_agent`, task not completed), **skip** spawning a duplicate.
 
 **Always** include **exactly one** `plan-orchestrator` dispatch in **`mode: post-merge-dispatch`**
-and **`mode: dispatch-only`** so Phase 3 advances. Merge detection already completed before this wave
-— use **only** `dispatch-only`:
+and **`mode: dispatch-only`** so Phase 3 advances. Merge detection already completed before this
+wave — use **only** `dispatch-only`:
 
 ```text
 mode: dispatch-only — dispatch ready plan-implementer + pr-reviewer sets per playbook
@@ -282,8 +313,8 @@ Agent({
 })
 ```
 
-In **`mode: merge-detection`** and **`mode: run`** (root pass that scheduled **`post-merge-dispatch`**),
-**skip** this §7 entirely.
+In **`mode: merge-detection`** and **`mode: run`** (root pass that scheduled
+**`post-merge-dispatch`**), **skip** this §7 entirely.
 
 Immediately after each dispatch returns, write the task_id to `in-flight.md` with `phase`,
 `subsystem`, `worker_agent`, `started_at`, and `parent_task_id` (this agent's parent task id).
@@ -312,7 +343,7 @@ this pass.
 | `gh` not authenticated | Stop, ask user to run `gh auth login` |
 | Lock cycle detected | Report to user, pick earlier claim |
 | Stale lock | Report only, do not auto-clear |
-| Uncommitted changes on main | Log warning to phase-progress, **continue** dispatch |
+| Stash gate failure (dirty tree or not on `main`) | **Stop** — user must stash/commit (§0) |
 
 ## Idempotency
 
@@ -339,3 +370,4 @@ Running this agent twice back-to-back must be safe:
 - Dispatch `release-orchestrator` without an explicit user request
 - Delete state files without explicit user confirmation
 - Skip `TaskStop` when enforcing a lock against in-flight tasks
+- Auto-stash or discard the user’s uncommitted work to bypass the stash gate

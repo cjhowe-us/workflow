@@ -79,21 +79,27 @@ Per the project rule, each story has exactly ONE persona + ONE action + ONE feat
 | Player | Playing the shipped game |
 | Engine developer | Building the engine itself |
 
-### 6. Open draft PR
+### 6. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/specify-<subsystem>-<topic>-us
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/specify-<subsystem>-<topic>-user-story
+BRANCH=feat/specify-<subsystem>-<topic>-us
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[specify] <subsystem>:<topic> — user stories"
-git push -u origin feat/specify-<subsystem>-<topic>-us
+git push -u origin "$BRANCH"
 gh pr create --draft \
   --base main \
-  --head feat/specify-<subsystem>-<topic>-us \
+  --head "$BRANCH" \
   --title "[specify] <subsystem>:<topic> — user stories" \
   --body "Authors docs/user-stories/<subsystem>/<topic>.md via user-story-author."
 ```
 
-Update `docs/plans/in-flight.md`.
+Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 7. Draft the user-story file
 
@@ -105,7 +111,7 @@ Load `skills/document-templates/templates/user-story.md`. Fill rows:
 - Acceptance steps (ordered list)
 - Story points — Fibonacci only (1, 2, 3, 5, 8, 13, 21)
 
-### 8. Write, format, commit, push
+### 8. Write, format, commit, push (inside `$WT`)
 
 ```bash
 mkdir -p docs/user-stories/<subsystem>
@@ -115,10 +121,17 @@ git commit -m "[specify] <subsystem>:<topic> — add user stories"
 git push
 ```
 
-### 9. Update phase progress
+### 9. Update phase progress (primary repo)
 
-Update `docs/plans/progress/phase-specify.md` (story count for `<subsystem>`, PR number, event log).
-Commit to `main` directly.
+Update `$PRIMARY/docs/plans/progress/phase-specify.md` (story count for `<subsystem>`, PR number,
+event log).
+
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-specify.md
+git -C "$PRIMARY" commit -m "[specify] update phase-specify.md for <subsystem>/<topic> stories"
+git -C "$PRIMARY" push origin main
+```
 
 ### 10. Return
 

@@ -59,19 +59,25 @@ Abort if `(phase: design, subsystem)` is locked.
 - `docs/design/constraints.md` — memory, perf, allocator rules
 - Related crates for reuse opportunities
 
-### 4. Open draft PR
+### 4. Open draft PR (git worktree)
 
 ```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/design-<subsystem>-<topic>-components
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/design-<subsystem>-<topic>-components
+BRANCH=feat/design-<subsystem>-<topic>-components
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[design] <subsystem>:<topic> — components"
-git push -u origin feat/design-<subsystem>-<topic>-components
-gh pr create --draft --base main --head feat/design-<subsystem>-<topic>-components \
+git push -u origin "$BRANCH"
+gh pr create --draft --base main --head "$BRANCH" \
   --title "[design] <subsystem>:<topic> — components" \
   --body "Drafts the internal component sections in docs/design/<subsystem>/<topic>.md."
 ```
 
-Update `docs/plans/in-flight.md`.
+Update `$PRIMARY/docs/plans/in-flight.md`.
 
 ### 5. Draft the component sections
 
@@ -95,7 +101,7 @@ Follow coding-standard rules:
 - Zero-copy via `rkyv` for serialized data
 - Minimize `unsafe`; use `bytemuck` / `zerocopy` for POD casts
 
-### 6. Write, format, commit, push
+### 6. Write, format, commit, push (inside `$WT`)
 
 ```bash
 rumdl fmt <design_path>
@@ -104,9 +110,16 @@ git commit -m "[design] <subsystem>:<topic> — component details"
 git push
 ```
 
-### 7. Update phase progress
+### 7. Update phase progress (primary repo)
 
-Append event log entry to `phase-design.md`.
+Append event log entry to `$PRIMARY/docs/plans/progress/phase-design.md`.
+
+```bash
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-design.md
+git -C "$PRIMARY" commit -m "[design] phase-design event <subsystem>/<topic> components"
+git -C "$PRIMARY" push origin main
+```
 
 ### 8. Return
 

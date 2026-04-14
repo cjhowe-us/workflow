@@ -65,29 +65,30 @@ grep -rh "^| F-" /Users/cjhowe/Code/harmonius/docs/features/ | \
 
 Pick the next free ID in the subsystem's number space.
 
-### 4. Open draft PR
+### 4. Open draft PR (git worktree — primary checkout stays on `main`)
 
-Open a draft PR against `main` with a unique branch. All subsequent commits go to this branch.
-
-```bash
-cd /Users/cjhowe/Code/harmonius
-git checkout -b feat/specify-<subsystem>-<topic>
-```
-
-Author an empty commit to anchor the branch, then push and open the draft PR:
+Use a dedicated worktree so the primary Harmonius repo is never checked out to a feature branch.
 
 ```bash
+PRIMARY=/Users/cjhowe/Code/harmonius
+WT_ROOT=/Users/cjhowe/Code/harmonius-worktrees
+WT=$WT_ROOT/specify-<subsystem>-<topic>-feature
+BRANCH=feat/specify-<subsystem>-<topic>
+mkdir -p "$WT_ROOT"
+git -C "$PRIMARY" fetch origin main 2>/dev/null || true
+git -C "$PRIMARY" worktree add "$WT" -b "$BRANCH" main
+cd "$WT"
 git commit --allow-empty -m "[specify] <subsystem>:<topic> — feature"
-git push -u origin feat/specify-<subsystem>-<topic>
+git push -u origin "$BRANCH"
 gh pr create --draft \
   --base main \
-  --head feat/specify-<subsystem>-<topic> \
+  --head "$BRANCH" \
   --title "[specify] <subsystem>:<topic> — feature" \
   --body "Authors docs/features/<subsystem>/<topic>.md via feature-author. Part of Phase 1."
 ```
 
-Capture the PR number and URL. Append an entry to `docs/plans/in-flight.md` with your task_id and PR
-number (updating the existing in-flight entry created by the orchestrator).
+Capture the PR number and URL. Update `$PRIMARY/docs/plans/in-flight.md` with your `task_id` and PR
+number (orchestrator may have pre-created the row).
 
 ### 5. Draft the feature file
 
@@ -110,7 +111,7 @@ mkdir -p docs/features/<subsystem>
 
 Write to `docs/features/<subsystem>/<topic>.md`.
 
-### 7. Format and commit
+### 7. Format and commit (inside `$WT`)
 
 ```bash
 rumdl fmt docs/features/<subsystem>/<topic>.md
@@ -119,25 +120,22 @@ git commit -m "[specify] <subsystem>:<topic> — add feature F-X.Y.Z"
 git push
 ```
 
-### 8. Update phase progress
+### 8. Update phase progress (primary repo only)
 
-Open `docs/plans/progress/phase-specify.md` and update the row for `<subsystem>`:
+Edit `$PRIMARY/docs/plans/progress/phase-specify.md` for `<subsystem>`:
 
 - Increment feature count
 - Append PR number to "Open PRs"
 - Set `last_updated` to now
 - Append a one-line event log entry
 
-Commit the phase progress update to `main` directly (not to your feature branch — progress files
-live in main):
+Commit from **`main`** without checking out the primary repo away from `main`:
 
 ```bash
-git checkout main
-git pull
-git add docs/plans/progress/phase-specify.md
-git commit -m "[specify] update phase-specify.md for <subsystem>/<topic>"
-git push
-git checkout feat/specify-<subsystem>-<topic>
+git -C "$PRIMARY" pull origin main
+git -C "$PRIMARY" add docs/plans/progress/phase-specify.md
+git -C "$PRIMARY" commit -m "[specify] update phase-specify.md for <subsystem>/<topic>"
+git -C "$PRIMARY" push origin main
 ```
 
 ### 9. Return
