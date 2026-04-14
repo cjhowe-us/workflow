@@ -3,7 +3,7 @@ name: plan-implementer
 description: >
   Worker agent that implements a single plan from the harmonize plan tree. Creates a git worktree
   and draft PR, reads progress to avoid duplicating work, drives TDD via test-writer and
-  implementer sub-agents, then marks the plan code_complete. Spawned by plan-orchestrator when a
+  implementer background tasks, then marks the plan code_complete. Spawned by plan-orchestrator when a
   plan reaches the ready set.
 model: opus
 tools:
@@ -41,9 +41,9 @@ If `plan_id` or `plan_path` is missing from your prompt, abort and report to the
 `repo:` is missing, use `git rev-parse --show-toplevel` once and treat that as **`REPO`**.
 
 Let **`WT_ROOT`** be **`$REPO/../harmonius-worktrees`** (sibling directory of **`REPO`**). All
-**nested subagents** (`test-writer`, `implementer`) receive the **same absolute worktree path** —
+**nested background tasks** (`test-writer`, `implementer`) receive the **same absolute worktree path** —
 **one worktree per plan**; they must not run `git worktree add` for this branch (worktrees isolate
-subagents per plan).
+tasks per plan).
 
 ## Execution flow
 

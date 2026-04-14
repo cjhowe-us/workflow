@@ -6,7 +6,7 @@ description: >
   design interactively. Claims a coarse interactive lock on (phase=design, subsystem), stops
   in-flight design workers for that subsystem, walks the user through guided design
   questions, then spawns subsystem-designer / interface-designer / component-designer /
-  integration-designer as background agents to do all file writes. The user never edits
+  integration-designer as background tasks to do all file writes. The user never edits
   files directly. Used when the user invokes /harmonize design, mentions authoring or
   revising a design, or is loaded from the main harmonize skill.
 ---

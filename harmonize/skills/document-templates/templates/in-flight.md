@@ -4,8 +4,8 @@ in_flight: []
 
 # In-Flight Background Tasks
 
-Sparse registry of **background** `Agent(run_in_background: true)` tasks. **Do not** mirror full
-agent trees here — only enough to dedupe dispatches and reconcile completions.
+Sparse registry of **background** `Agent` / `Task` runs with `run_in_background: true`. **Do not** mirror full
+task trees here — only enough to dedupe dispatches and reconcile completions.
 
 Sub-skills use this file with **`locks.md`** (worktree claims) when stopping background work before
 interactive work.

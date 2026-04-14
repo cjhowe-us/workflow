@@ -4,7 +4,7 @@ description: >
   Interactive Phase 4 (Release) sub-skill for the harmonize SDLC. Loads when the user wants
   to cut a release. Claims the global release lock, stops any in-flight release workers,
   walks the user through release scope questions, then spawns release-notes-author,
-  changelog-updater, and tagger as background agents sequentially to produce the release PR
+  changelog-updater, and tagger as background tasks sequentially to produce the release PR
   and tag. The user never edits files directly. Used when the user invokes /harmonize
   release, mentions cutting a release, or is loaded from the main harmonize skill.
 ---

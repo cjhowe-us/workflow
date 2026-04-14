@@ -126,4 +126,47 @@ else
   rm -f "$TMP"
 fi
 
+# Cursor Task tool: subagentStop JSON includes `status`. Cursor only consumes `followup_message`
+# from subagentStop when status is `completed`; for `error`/`aborted`, write a pending hint that
+# `harmonize-cursor-stop-followup.sh` reads on the next `stop` event.
+cursor_note_task_restart_pending() {
+  local st
+  st=$(echo "$INPUT" | jq -r '.status // empty')
+  [[ -n "$st" ]] || return 0
+  [[ "$HOOK_EVENT" == "WorktreeRemove" ]] && return 0
+  [[ "$st" == error || "$st" == aborted ]] || return 0
+
+  local task desc summary combined snippet
+  task=$(echo "$INPUT" | jq -r '.task // ""')
+  desc=$(echo "$INPUT" | jq -r '.description // ""')
+  summary=$(echo "$INPUT" | jq -r '.summary // ""')
+  combined="$task $desc $summary"
+
+  local kind=""
+  if [[ "$combined" == *plan-orchestrator* ]] || [[ "$combined" == *agents/plan-orchestrator.md* ]]; then
+    kind="plan-orchestrator"
+  elif [[ "$combined" == *agents/harmonize.md* ]] && [[ "$combined" == *mode:*run* ]]; then
+    kind="harmonize"
+  else
+    return 0
+  fi
+
+  snippet=$(printf '%s' "$combined" | head -c 6000)
+  local pend tmp  pend="$ROOT/docs/plans/.cursor-hook-restart-pending.json"
+  tmp="${pend}.tmp.$$"
+  if jq -n \
+    --arg kind "$kind" \
+    --arg status "$st" \
+    --arg repo "$ROOT" \
+    --arg context "$snippet" \
+    '{kind:$kind,status:$status,repo:$repo,context:$context}' >"$tmp"
+  then
+    mv "$tmp" "$pend" || rm -f "$tmp"
+  else
+    rm -f "$tmp"
+  fi
+}
+
+cursor_note_task_restart_pending
+
 exit 0

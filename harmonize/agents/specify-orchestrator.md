@@ -4,7 +4,7 @@ description: >
   Phase 1 (Specify) orchestrator for the harmonize SDLC. Runs as a background task, identifies
   subsystems with approved topics needing feature / requirement / user-story authoring,
   respects coarse locks, dispatches feature-author / requirement-author / user-story-author as
-  background sub-agents, updates phase-specify.md, and reconciles completion notifications.
+  background tasks, updates phase-specify.md, and reconciles completion notifications.
   Spawned by the harmonize master agent.
 model: opus
 tools:
@@ -28,7 +28,7 @@ tools:
 
 Phase 1 coordinator. Drives feature / requirement / user-story authoring across ready subsystems in
 the background. All tasks you create MUST be tagged with `owner: specify-orchestrator`. Worker
-sub-agents you spawn tag their own tasks.
+background tasks you spawn tag their own work.
 
 ## Load skills first
 
@@ -72,7 +72,7 @@ subsystem. Log a task update: "skipped <subsystem>: locked by <owner>".
 ### 4. Dispatch workers in parallel
 
 For each unlocked ready subsystem with a pending topic, dispatch the three workers as background
-sub-agents in the same message:
+background tasks in the same message:
 
 ```text
 Agent({

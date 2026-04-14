@@ -5,14 +5,14 @@ description: >
   author or revise features, requirements, or user stories interactively. Claims a coarse
   interactive lock on (phase=specify, subsystem), stops any in-flight specify workers for that
   subsystem, walks the user through guided questions, then spawns feature-author,
-  requirement-author, and user-story-author as background agents to do all file writes. The
+  requirement-author, and user-story-author as background tasks to do all file writes. The
   user never edits files directly. Used when the user invokes /harmonize specify, mentions
   authoring or revising F/R/US, or is loaded from the main harmonize skill.
 ---
 
 # Harmonize — Specify (Interactive)
 
-Interactive foreground path for Phase 1. The user decides and gives feedback; background agents do
+Interactive foreground path for Phase 1. The user decides and gives feedback; background tasks do
 every file write.
 
 ## When to use
@@ -124,7 +124,7 @@ lock).
 
 ### 7. Dispatch background workers
 
-Dispatch the three authors as background sub-agents in parallel — they will handle all file writes,
+Dispatch the three authors as background tasks in parallel — they will handle all file writes,
 commits, and PRs. The user never edits anything directly.
 
 ```text

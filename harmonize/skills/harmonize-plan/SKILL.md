@@ -5,7 +5,7 @@ description: >
   wants to author or revise an implementation plan for a merged design. Claims a coarse
   interactive lock on (phase=plan, subsystem), stops in-flight plan workers for that
   subsystem, walks the user through plan scoping questions, then spawns plan-author as a
-  background agent to write the plan files. The user never edits files directly. Used when
+  background task to write the plan files. The user never edits files directly. Used when
   the user invokes /harmonize plan, mentions authoring or revising a plan, or is loaded from
   the main harmonize skill.
 ---

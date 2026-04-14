@@ -9,6 +9,14 @@
         "type": "command"
       }
     ],
+    "stop": [
+      {
+        "command": "./hooks/harmonize-cursor-stop-followup.sh",
+        "loop_limit": null,
+        "timeout": 30,
+        "type": "command"
+      }
+    ],
     "subagentStart": [
       {
         "command": "./hooks/subagent-start-worktree-state.sh",
@@ -19,6 +27,7 @@
     "subagentStop": [
       {
         "command": "./hooks/subagent-stop-worktree-state.sh",
+        "loop_limit": null,
         "timeout": 30,
         "type": "command"
       }

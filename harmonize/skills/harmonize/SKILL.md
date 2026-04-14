@@ -10,10 +10,10 @@ description: >
   approval, no “what next?” prompt). The master chains merge-detection and a post-merge continuation
   (gh on PLAN-* PRs) before fanning out every unblocked worker in parallel. Routes user
   intent to phase-specific sub-skills for interactive
-  work while a background supervisor runs the orchestration tree asynchronously and opens many
+  work while a background supervisor task runs the orchestration tree asynchronously and opens many
   small draft PRs for human review. Use whenever the user wants to plan, design, implement,
   review, release, or check status of anything in Harmonius, or whenever "harmonize" is mentioned.
-  After killed background agent trees, `/harmonize reset-in-flight` clears stale `in-flight.md` rows
+  After killed background task trees, `/harmonize reset-in-flight` clears stale `in-flight.md` rows
   before the next `run`; hosts without `TaskList`/`TaskStop` flush the registry during restart sweep.
   On Cursor IDE, read `docs/cursor-host.md` in this plugin for dispatch mapping (`Task` vs `Agent`).
 ---
@@ -22,7 +22,7 @@ description: >
 
 Master entry point for the Harmonius software development lifecycle. Coordinates all four SDLC
 phases across hundreds of subsystems. The user never edits files directly — sub-skills ask questions
-and spawn background agents to do every file write, git operation, and PR action. Progress is
+and spawn background tasks to do every file write, git operation, and PR action. Progress is
 tracked via state files, hierarchical task lists, and many small GitHub PRs so human review stays
 readable.
 
@@ -31,7 +31,7 @@ readable.
 | Channel | What runs | User sees |
 |---------|-----------|-----------|
 | Foreground (this conversation) | Slash-command routing, `status`, interactive **sub-skills** only | Brief ack on `/harmonize`; questions only inside sub-skills |
-| Background (`Agent(run_in_background: true)`) | master agent, phase orchestrators, workers | Progress notifications, PRs |
+| Background tasks (`Agent` / `Task` with `run_in_background: true`) | master agent, phase orchestrators, workers | Progress notifications, PRs |
 
 The main conversation stays responsive because every heavy agent runs as a background task. State
 persists to files, so the user can step away and come back. When a background task completes, the
@@ -145,13 +145,18 @@ the gate **false-fails**. Orchestrator playbooks resolve **`REPO`** accordingly;
 **`SubagentStart` / `SubagentStop`:** updating **`worktree-state.json`** is best-effort; a failed
 replace (e.g. editor lock) must **not** abort the subagent — hooks exit successfully after cleanup.
 
+**Cursor IDE:** when a **plan-orchestrator** (supervisor) or harmonize **`mode: run`** background Task stops with **`error`** / **`aborted`**, the plugin’s **`subagentStop`** hook records **`docs/plans/.cursor-hook-restart-pending.json`**; the **`stop`** hook submits a follow-up that
+re-dispatches orchestration. If the main loop ends with **`error`** / **`aborted`** while
+**`harmonize-run-lock.md`** is still **`active: true`**, the **`stop`** hook re-triggers default
+**`/harmonize`**. See **`docs/cursor-host.md`** (Task recovery hooks).
+
 If **material** dirty, **stop** — no orchestrator dispatch. The user runs
 **`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
 **`stop`**, and **`post-merge-dispatch`** skip this gate (continuation after merge reconciliation).
 
 ## Killed agent trees (`in-flight.md` orphans)
 
-Stopping nested background agents in the IDE (or dropping a session) can leave
+Stopping nested background tasks in the IDE (or dropping a session) can leave
 **`docs/plans/in-flight.md`** rows whose **`task_id` values are dead**. Without
 **`TaskList` / `TaskStop`**, the host cannot tell live tasks from ghosts, so the registry may block
 locks or duplicate dispatch.
@@ -217,7 +222,7 @@ owns locks and pacing.
 
 Interactive sub-skills use `AskUserQuestion` to collect user input. Sub-skills then either:
 
-1. Spawn a background agent to do the writing (preferred for any non-trivial file change), or
+1. Spawn a background task to do the writing (preferred for any non-trivial file change), or
 2. Write files themselves — but only when the change is tiny and the user has approved
 
 The user ONLY provides feedback and decisions. All file writes, git operations, and GitHub PR
@@ -469,7 +474,7 @@ subset as the `merge-detection` mode on the `harmonize` master agent.
    })
    ```
 
-2. If background agents are not available, instruct the session to perform the same steps as the
+2. If background tasks are not available, instruct the session to perform the same steps as the
    `harmonize` master agent’s merge-detection pass (read state, delegate merge check to
    `plan-orchestrator` per agent playbook).
 
@@ -477,7 +482,7 @@ This pass is idempotent: repeating it should not advance status twice for the sa
 
 ## Completion notifications
 
-When this skill (or any sub-skill) dispatches a background agent via
+When this skill (or any sub-skill) dispatches a background task via
 `Agent(run_in_background: true)`, the foreground conversation receives a completion notification
 with the task output file path when the task finishes. Use this to resume interactive work without
 polling.

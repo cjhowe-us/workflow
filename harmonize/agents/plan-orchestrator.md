@@ -143,7 +143,7 @@ Read `docs/plans/locks.md` and keep it in memory for §6–8.
 
 ### 4b. Scan existing worktrees (resume + isolation)
 
-**Purpose:** Background agents use **one git worktree per branch** under the worktrees root so each
+**Purpose:** Background tasks use **one git worktree per branch** under the worktrees root so each
 subagent works in an isolated checkout — **only when** that agent will **change** the repo
 (**`plan-implementer`**, doc PR workers). This orchestrator **never** runs **`git worktree add`** or
 creates directories under **`harmonius-worktrees/`**; it only reconciles lists. Before dispatching,

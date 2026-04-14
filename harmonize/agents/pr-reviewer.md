@@ -2,7 +2,7 @@
 name: pr-reviewer
 description: >
   Worker agent that reviews a plan's draft PR, addresses review issues via implementer
-  sub-agents, runs final verification, and marks the PR ready for human review by undrafting it.
+  nested tasks, runs final verification, and marks the PR ready for human review by undrafting it.
   Spawned by plan-orchestrator when a plan reaches code_complete state.
 model: opus
 tools:
@@ -62,7 +62,7 @@ Resolve the **live** directory the same way as `plan-implementer` §4:
 4. `cd` to that path. All subsequent commands run in the worktree.
 
 **One worktree for this plan** — do not create a second worktree for the same branch; nested review
-agents must use this path only (**worktrees isolate subagents**).
+agents must use this path only (**worktrees isolate background tasks**).
 
 Sanity check:
 

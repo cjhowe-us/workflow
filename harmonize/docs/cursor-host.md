@@ -81,7 +81,7 @@ out **`plan-implementer` / `pr-reviewer`** via **`Task`** the same way (breadth 
 - Treat rows as **advisory** (human + IDE visibility).
 - On **`/harmonize run`** root, if the registry was non-empty and task APIs are absent, **flush** to
   `[]` per skill (restart sweep).
-- When the user **kills** background agents, run **`/harmonize reset-in-flight`** or flush manually.
+- When the user **kills** background tasks, run **`/harmonize reset-in-flight`** or flush manually.
 - **Do not** assume `task_id` values are stoppable from the repo.
 
 ## Run lock (`harmonize-run-lock.md`)
@@ -93,3 +93,15 @@ Same file semantics as Claude Code. If **`AskUserQuestion`** is unavailable and 
 
 Install the **`harmonize`** plugin from the **`cjhowe-us-workflow`** marketplace mirror; hooks live
 under **`.cursor-plugin/plugin.json`**. See the root [**README**](../../README.md).
+
+## Task recovery hooks (Cursor)
+
+Cursor’s **`subagentStop`** hook only applies `followup_message` when the Task **`status`** is
+`completed` (see [Cursor hooks](https://cursor.com/docs/hooks)). When a **plan-orchestrator**
+(supervisor) or **`mode: run`** harmonize master Task ends with **`error`** or **`aborted`**,
+`subagent-stop-worktree-state.sh` writes **`docs/plans/.cursor-hook-restart-pending.json`** (ignored
+by git). The next **`stop`** hook run consumes that file and auto-submits a **`followup_message`**
+that tells the parent session to re-dispatch the correct background Task. If the main agent loop
+ends with **`error`** / **`aborted`** while **`harmonize-run-lock.md`** still has **`active: true`**
+(and there is no pending file), **`harmonize-cursor-stop-followup.sh`** submits a follow-up to
+re-run default **`/harmonize`** (`mode: run`).

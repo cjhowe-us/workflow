@@ -5,7 +5,7 @@ description: >
   to review a draft PR interactively. Claims a coarse interactive lock on (phase=review,
   subsystem), stops the in-flight pr-reviewer for that PR, walks the user through the
   review findings one at a time, then spawns pr-reviewer to address each finding as a
-  background agent. The user never edits files directly. Used when the user invokes
+  background task. The user never edits files directly. Used when the user invokes
   /harmonize review, mentions reviewing a PR, or is loaded from the main harmonize skill.
 ---
 

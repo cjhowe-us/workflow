@@ -2,7 +2,7 @@
 
 A Claude Code plugin that provides a full SDLC supervisor for the Harmonius game engine: feature
 ideation, hierarchical design, design review, implementation planning, hierarchical TDD execution,
-PR review, and release. Background agents do all file writes and git operations via many small draft
+PR review, and release. Background tasks do all file writes and git operations via many small draft
 PRs; interactive sub-skills let the user give feedback at any level of the SDLC.
 
 ## Dependencies

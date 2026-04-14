@@ -359,7 +359,7 @@ Procedure:
 1. If a `plan-orchestrator` task is **already** in `in-flight.md` with a merge-detection prompt, do
    **not** spawn a duplicate. For **`mode: run`**, still ensure a **`post-merge-dispatch`** child is
    queued for that existing merge task (spawn continuation if missing).
-2. Otherwise dispatch **exactly one** background agent:
+2. Otherwise dispatch **exactly one** background task:
 
 ```text
 Agent({
