@@ -4,6 +4,7 @@ description: >
   Full SDLC orchestration for Harmonius. Entry point for every stage of the software
   development lifecycle: feature/requirement/user-story ideation, hierarchical design, design
   review, implementation planning, hierarchical TDD execution, PR review, and release.
+  Requires plans to link to design docs and design docs to trace F/R/US.
   A bare /harmonize immediately dispatches the harmonize master agent in the background (no
   approval, no “what next?” prompt). The master chains merge-detection and a post-merge continuation
   (gh on PLAN-* PRs) before fanning out every unblocked worker in parallel. Routes user
@@ -124,6 +125,27 @@ PR, and a specific review cycle.
 
 Phase 3 is a nested pipeline (plan → TDD → review → merge → dependents) driven by the existing
 `plan-orchestrator`.
+
+## Traceability (Specify → Design → Plan)
+
+Every **design** and **plan** must stay linked **upstream**. Orphan artifacts block review and
+implementation.
+
+| Downstream | Must link to (upstream) |
+|------------|-------------------------|
+| Design doc under `docs/design/` | **Features** (`F-X.Y.Z`), **requirements** (`R-X.Y.Z`), and **user stories** (`US-X.Y.Z`) — typically the Requirements Trace table at the top of the doc, or the same IDs repeated in front matter where templates allow. Integration designs cite the F/R/US that justify the cross-subsystem boundary. |
+| Implementation plan under `docs/plans/` | One or more **design document paths** in plan front matter (`design_documents`). Those designs must already trace to F/R/US as above. The plan’s **`features`**, **`requirements`**, and **`test_cases`** fields must be **consistent** with the linked design docs (no IDs that do not appear in the trace chain). |
+
+**Orchestrator / worker expectations:**
+
+- Phase2 authors treat missing or empty F/R/US trace as **blocking** — do not hand off to plan
+  authoring until resolved.
+- **`plan-author`** rejects or revises plans with empty `design_documents`, broken paths, or F/R/US
+  lists that do not match the cited designs.
+- **`plan-implementer`** already aborts when `design_documents` is empty — keep that invariant.
+
+**Forbidden:** plans with no design linkage, designs with no specify linkage, or mismatched ID sets
+between plan front matter and the linked design docs.
 
 ## Sub-skills per phase
 
