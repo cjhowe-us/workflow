@@ -13,6 +13,8 @@ description: >
   work while a background supervisor runs the orchestration tree asynchronously and opens many
   small draft PRs for human review. Use whenever the user wants to plan, design, implement,
   review, release, or check status of anything in Harmonius, or whenever "harmonize" is mentioned.
+  After killed background agent trees, `/harmonize reset-in-flight` clears stale `in-flight.md` rows
+  before the next `run`; hosts without `TaskList`/`TaskStop` flush the registry during restart sweep.
 ---
 
 # Harmonize
@@ -56,10 +58,15 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
    orchestrators (`plan-orchestrator` **`dispatch-only`** + specify + design as needed). Never skip
    merge reconciliation before that wave in `mode: run`.
 5. **Default restart of in-flight work** — on **`run`**, **`post-merge-dispatch`** (after merge
-   completes), **`dispatch-only`**, and **`resume`**, the master **`TaskStop`s** every background
-   task still listed as running in `in-flight.md` (merge-detection agent is awaited **before** this
-   sweep in the continuation). Then the dispatch wave spawns **fresh** orchestrators. **`status`**
-   and **`merge-detection`** do not stop running tasks; **`stop`** stops them without redispatch.
+   completes), **`dispatch-only`**, and **`resume`**, the master performs a **restart sweep** on
+   `in-flight.md` (merge-detection agent is awaited **before** this sweep in the continuation):
+   - If **`TaskList` / `TaskStop` are available**: reconcile rows, then **`TaskStop`** every task
+     still listed as running; then spawn **fresh** orchestrators.
+   - If those APIs are **absent** (typical Cursor hosts): treat the file as **stale** after a killed
+     tree — **flush** `in_flight` to `[]`, append a **`phase-plan.md` event**, then spawn **fresh**
+     orchestrators (never assume dead `task_id` values are still stoppable).
+**`status`** and **`merge-detection`** do not stop running tasks; **`stop`** stops them without
+redispatch.
 
 Use **`/harmonize status`** (or `status` argument) only when the user wants a read-only summary with
 **no** background dispatch.
@@ -83,6 +90,20 @@ Before **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, t
 If dirty, **stop** — no orchestrator dispatch. The user runs
 **`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
 **`stop`**, and **`post-merge-dispatch`** skip this gate (continuation after merge reconciliation).
+
+## Killed agent trees (`in-flight.md` orphans)
+
+Stopping nested background agents in the IDE (or dropping a session) can leave
+**`docs/plans/in-flight.md`** rows whose **`task_id` values are dead**. Without
+**`TaskList` / `TaskStop`**, the host cannot tell live tasks from ghosts, so the registry may block
+locks or duplicate dispatch.
+
+| Situation | Handler action |
+|-----------|----------------|
+| User killed tasks / restarted worktrees | Run **`/harmonize reset-in-flight`** (synonym: **`clear-in-flight`**) before the next **`run`**. |
+| **`reset-in-flight` / `clear-in-flight`** | Set `in_flight: []`, bump **`phase-plan.md`** `last_updated`, append an **Event log** line (UTC + reason). **No** stash gate; **no** background dispatch. |
+| **`mode: run` restart sweep** | With task APIs: follow **`in-flight.md` §Reconciliation loop**. Without them: **flush** + log, then continue (same net effect as a manual reset). |
+| Sub-skill **stop-before-lock** | If **`TaskStop`** is missing, **remove** matching rows (or **flush**) instead of waiting on ghosts. |
 
 ## Worktree isolation
 
@@ -282,6 +303,8 @@ When the user invokes this skill, parse the argument and route:
 | `cron` | Bootstrap the merge-detection cron |
 | `merge-detect` | Dispatch `harmonize` master in `merge-detection` mode (manual merged-PR check) |
 | `merge-detection` | Same as `merge-detect` |
+| `clear-in-flight` | Same as **`reset-in-flight`** |
+| `reset-in-flight` | Clear `docs/plans/in-flight.md` to `[]`; append **`phase-plan.md` event**; **no** dispatch; **no** stash gate |
 | `resume <phase> <subsystem>` | After a sub-skill releases a lock, re-dispatch for that resource |
 | `specify [topic]` | `Skill(harmonize-specify, <topic>)` |
 | `design [doc-path]` | `Skill(harmonize-design, <doc-path>)` |
@@ -298,8 +321,9 @@ switch.
 A bare `/harmonize` (no argument) must **not** stop at status-only or merge-detect alone. Dispatch
 the `harmonize` master agent in background with default mode `run` so it:
 
-1. Reconciles completed in-flight tasks, then **`TaskStop`s** every remaining running background
-   task (restart sweep), enforces locks, re-reads phase + `PLAN-*` files.
+1. Reconciles **`in-flight.md`** per the
+   **[Killed agent trees](#killed-agent-trees-in-flightmd-orphans)** restart sweep (`TaskStop` when
+   task APIs exist; **flush** when they do not), enforces locks, re-reads phase + `PLAN-*` files.
 2. Starts **`plan-orchestrator`** **`merge-detection`** in the background and chains **`harmonize`**
    **`post-merge-dispatch`** so merge completes **before** implementers without the root pass
    blocking on polls — for each `PLAN-*` with a PR, **`gh pr view`**; archive merged plans; update
@@ -426,6 +450,7 @@ Cron: active, next fire in 7 minutes
 - When the user mentions "harmonize" in any form
 - When the merge-detection cron fires
 - When the user wants to author, revise, implement, review, or release anything
+- After killing background harmonize tasks — **`/harmonize reset-in-flight`**, then **`/harmonize`**
 
 ## When NOT to use this skill
 
