@@ -49,7 +49,9 @@ Cursor does not provide **`Agent(subagent_type: harmonize|plan-orchestrator|…)
    loaded).
 2. Execute **`agents/harmonize.md`** **inline** in the current conversation — the full playbook
    runs directly (stash gate → state read → reconcile → unblock gh → dispatch orchestrators).
-3. Phase orchestrators and workers are dispatched via **`Task`** with
+3. **Never** dispatch the master orchestrator through **`Subagent(subagent_type=harmonize)`** or a
+   background **`Task`**. The top-level `/harmonize` run is always inline in the active chat turn.
+4. Phase orchestrators and workers are dispatched via **`Task`** with
    **`run_in_background: true`** and **`subagent_type`** per **`docs/cursor-host.md`**.
 
 ## Non-negotiable: default `/harmonize` (run) behavior
@@ -60,8 +62,9 @@ When the user invokes **`/harmonize`** with **no** arguments, or **`/harmonize r
 1. **No approval gate** — do **not** ask which plan or subsystem to prioritize, do **not** wait
    for the user to confirm a "go" after printing status. `/harmonize` is non-interactive.
 2. **Inline execution** — execute the `agents/harmonize.md` playbook **directly** in the current
-   conversation. Do **not** dispatch the master orchestrator as a background `Task` or `Agent`.
-   Phase orchestrators and workers are still dispatched as background tasks.
+   conversation. Do **not** dispatch the master orchestrator as a background `Task`, `Agent`, or
+   **`Subagent(subagent_type=harmonize)`**. Phase orchestrators and workers are still dispatched as
+   background tasks.
 3. **Ordered gh pass, then parallel unblock** — **`plan-orchestrator`** **`unblock-workflow-gh`** must
    finish (`gh` on every `PLAN-*` with a PR) **before** any implementer dispatch wave. The
    orchestrator chains `post-merge-dispatch` so PR state is reconciled before the dispatch wave.
