@@ -51,10 +51,13 @@ prioritization, or “should I proceed?”. Start work immediately.
 and **`main`** `HEAD`. Do **not** auto-stash — the user must commit or stash before `/harmonize`.
 **`post-merge-dispatch`** skips §0 (merge reconciliation may have just updated `docs/plans/`).
 
-## Load the harmonize skill first
+## Load the harmonize skill
 
-Before any other action, call `Skill(harmonize)` to load the operational playbook. Do not act from
-memory — state and conventions live in the skill.
+After **§0** when **§0** applies (**`run`**, **`merge-detection`**, **`dispatch-only`**,
+**`resume`**), call `Skill(harmonize)` before reading or writing **`$REPO`** state. For
+**`status`**, **`stop`**, or **`post-merge-dispatch`**, call **`Skill(harmonize)`** as the first
+tool action (**`post-merge-dispatch`** skips **§0**). Do not act from memory — state and conventions
+live in the skill.
 
 ## Prerequisites
 
@@ -101,7 +104,14 @@ Every task this agent creates is tagged `owner: harmonize`. Every task dispatche
 should be tagged with their own agent name (`owner: specify-orchestrator`,
 `owner: feature-author`,...). Never create tasks without an owner.
 
-Create a parent task at the start of each run:
+**Order (gated modes):** **§0** stash gate **first** — before **`Skill(harmonize)`**, before the
+parent **`TaskCreate`**, and before any other **`$REPO`** access. Then call **`Skill(harmonize)`**,
+then create the parent task (**`TaskCreate`** below), then **§0b** run lock + optional in-flight
+auto-reset so `root_task_id` exists before writing **`harmonize-run-lock.md`**. **Ungated modes**
+(**`status`**, **`stop`**, **`post-merge-dispatch`**): **`Skill(harmonize)`** first, then
+**`TaskCreate`** when you track tasks; **§0** does not run.
+
+Create a parent task after **§0** and **`Skill(harmonize)`** when those apply:
 
 ```text
 TaskCreate({
@@ -114,16 +124,13 @@ TaskCreate({
 
 Create intermediary tasks for each step below, update them pending → in_progress → completed.
 
-**Order:** create the parent task **first** (this section), then **§0** stash gate, then **§0b** run
-lock + optional in-flight auto-reset — so `root_task_id` exists before writing
-`harmonize-run-lock.md`.
-
 ## Execution flow
 
 ### 0. Stash gate (clean primary checkout)
 
 When **`mode`** is **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, run this
-**before** any other step **after** the parent `TaskCreate` above. **Skip** for **`status`**,
+as the **first** executable step of the pass — **before** **`Skill(harmonize)`**, **`TaskCreate`**,
+reads/writes under **`$REPO`**, cron, or orchestrator dispatch. **Skip** for **`status`**,
 **`stop`**, and **`post-merge-dispatch`**.
 
 Let `REPO` be the repository path resolved in Prerequisites.
@@ -136,16 +143,25 @@ Let `REPO` be the repository path resolved in Prerequisites.
 
    If the result is **not** `main`, **stop** and report — checkout `main` before `/harmonize`.
 
-2. Verify clean working tree:
+2. Verify **material** clean working tree (harmonize coordination files **ignored** — hooks and
+   orchestrators update these continuously; they must **not** trip the gate). Same pathspecs as
+   **`harmonize/hooks/material-porcelain.sh`**:
 
    ```bash
-   git -C "$REPO" status --porcelain
+   git -C "$REPO" status --porcelain -- . \
+     ':(exclude)docs/plans/progress' \
+     ':(exclude)docs/plans/in-flight.md' \
+     ':(exclude)docs/plans/worktree-state.json' \
+     ':(exclude)docs/plans/harmonize-run-lock.md' \
+     ':(exclude)docs/plans/locks.md' \
+     ':(exclude)docs/plans/index.md'
    ```
 
-   If output is **non-empty**, **stop**. Do **not** dispatch orchestrators or workers. Tell the user
-   the primary checkout must be clean; they should **`git stash push -u -m "harmonize-gate"`** (or
-   commit), confirm `git status` is clean on `main`, then re-run `/harmonize`. Never run `git stash`
-   on the user’s behalf.
+   If output is **non-empty**, **stop**. Do **not** call **`Skill(harmonize)`**, **`TaskCreate`**,
+   or dispatch orchestrators/workers. Tell the user the primary checkout must not have **material**
+   uncommitted changes; they should **`git stash push -u -m "harmonize-gate"`** (or commit), confirm
+   the material tree is clean on `main`, then re-run `/harmonize`. Never run `git stash` on the
+   user’s behalf.
 
 ### 0b. Global run lock + auto-reset in-flight
 

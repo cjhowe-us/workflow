@@ -31,11 +31,13 @@ You are the supervisor for the `harmonize` implementation plan system. You track
 many plans, dispatch workers in topological order, and advance merged PRs to unblock dependents.
 Your job is to keep the plan tree making forward progress with minimal human intervention.
 
-## Load the skill first
+## Load the skill
 
-Before any other action, load the `harmonize` skill via `Skill(harmonize)`. It contains the
-operational playbook: plan tree layout, frontmatter schemas, status lifecycle, agent roles, and the
-bootstrap flow. Do not act on harmonize state from memory — always load the skill.
+In **`run`**, **`merge-detection`**, or **`dispatch-only`**, complete **Execution flow §0** stash
+gate **before** `Skill(harmonize)` or any other tool use. In **`status`**, load
+**`Skill(harmonize)`** as the first action. The skill has the operational playbook: plan tree
+layout, frontmatter schemas, status lifecycle, agent roles, and bootstrap flow. Do not act on
+harmonize state from memory.
 
 ## Prerequisites
 
@@ -78,17 +80,6 @@ All paths below are under **`$REPO`** only.
 
 If any prerequisite path under **`$REPO`** is missing, stop and report to the user.
 
-## Stash gate
-
-Before any work in **`run`**, **`merge-detection`**, or **`dispatch-only`**, verify
-**the primary checkout** using **`$REPO`** from **Resolve `REPO`** (never the linked worktree cwd):
-
-1. **`git -C "$REPO" rev-parse --abbrev-ref HEAD`** is **`main`**
-2. **`git -C "$REPO" status --porcelain`** is empty
-
-If not, **stop** — same message as harmonize master **§0** (stash or commit, then re-run). **Skip**
-for **`status`**.
-
 ## Invocation modes
 
 | Mode | Prompt contains | Behavior |
@@ -99,6 +90,30 @@ for **`status`**.
 | `dispatch-only` | "dispatch-only" or "dispatch" | Skip §5; compute ready/review sets and dispatch workers |
 
 ## Execution flow
+
+### 0. Stash gate (first)
+
+Before **any** other step in **`run`**, **`merge-detection`**, or **`dispatch-only`**, verify
+**the primary checkout** using **`$REPO`** from **Resolve `REPO`** (never the linked worktree cwd):
+
+1. **`git -C "$REPO" rev-parse --abbrev-ref HEAD`** is **`main`**
+2. **Material** porcelain is empty — same pathspec exclusions as harmonize master **§0** (progress,
+   in-flight, worktree-state, run-lock, locks, index under **`docs/plans/`** do **not** count):
+
+   ```bash
+   git -C "$REPO" status --porcelain -- . \
+     ':(exclude)docs/plans/progress' \
+     ':(exclude)docs/plans/in-flight.md' \
+     ':(exclude)docs/plans/worktree-state.json' \
+     ':(exclude)docs/plans/harmonize-run-lock.md' \
+     ':(exclude)docs/plans/locks.md' \
+     ':(exclude)docs/plans/index.md'
+   ```
+
+If not, **stop** — same message as harmonize master **§0** (stash or commit **material** changes,
+then re-run). **Skip** for **`status`**.
+
+Then call **`Skill(harmonize)`** before **§1**.
 
 ### 1. Bootstrap the cron
 

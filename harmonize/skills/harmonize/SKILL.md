@@ -82,13 +82,33 @@ scheduling. **Forbidden** for pacing: `bash sleep` or long idle loops in orchest
 APIs, completion notifications, or the next harmonize reconciliation pass (`in-flight.md` §3). A
 full **`run`** also **stops** stale runners via §3 restart sweep before issuing a new wave.
 
-## Stash gate (clean `main`)
+## Stash gate (clean `main`, material changes only)
 
 Before **`run`**, **`merge-detection`**, **`dispatch-only`**, or **`resume`**, the harmonize master
-(and `plan-orchestrator` in those modes) requires:
+(and **`plan-orchestrator`** in those modes) runs this **first** — before **`Skill(harmonize)`**
+reload, **`TaskCreate`**, cron, reads of dispatch state, or worker dispatch. It requires:
 
 - `HEAD` on **`main`**
-- **`git status --porcelain`** empty in the primary Harmonius checkout
+- **Material** porcelain empty in the primary Harmonius checkout — use pathspec exclusions so
+  harmonize **progress, state, and tracking** files do **not** count as dirty:
+
+```bash
+git -C "$REPO" status --porcelain -- . \
+  ':(exclude)docs/plans/progress' \
+  ':(exclude)docs/plans/in-flight.md' \
+  ':(exclude)docs/plans/worktree-state.json' \
+  ':(exclude)docs/plans/harmonize-run-lock.md' \
+  ':(exclude)docs/plans/locks.md' \
+  ':(exclude)docs/plans/index.md'
+```
+
+(Equivalent: `harmonize` plugin **`hooks/material-porcelain.sh`** with **`$REPO`**.)
+
+**Excluded (never trip the gate):** per-phase and **`PLAN-*`** progress under
+**`docs/plans/progress/`**, **`in-flight.md`**, **`worktree-state.json`**,
+**`harmonize-run-lock.md`**, **`locks.md`**, **`index.md`**. **Not excluded:** implementation plans
+**`docs/plans/<subsystem>/...`**, source, specs, and all paths outside those exclusions —
+uncommitted edits there still block **`run`**.
 
 **`REPO` for this gate** must be that **primary** tree (**`dirname`** of **`git-common-dir`**), not
 the current linked worktree path — otherwise **`HEAD`** and dirty state reflect a worker branch and
@@ -98,7 +118,7 @@ the gate **false-fails**. Orchestrator playbooks resolve **`REPO`** accordingly;
 **`SubagentStart` / `SubagentStop`:** updating **`worktree-state.json`** is best-effort; a failed
 replace (e.g. editor lock) must **not** abort the subagent — hooks exit successfully after cleanup.
 
-If dirty, **stop** — no orchestrator dispatch. The user runs
+If **material** dirty, **stop** — no orchestrator dispatch. The user runs
 **`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
 **`stop`**, and **`post-merge-dispatch`** skip this gate (continuation after merge reconciliation).
 
