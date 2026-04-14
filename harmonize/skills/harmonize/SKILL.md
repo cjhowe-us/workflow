@@ -4,6 +4,7 @@ description: >
   Full SDLC orchestration for Harmonius. Entry point for every stage of the software
   development lifecycle: feature/requirement/user-story ideation, hierarchical design, design
   review, implementation planning, hierarchical TDD execution, PR review, and release.
+  A bare /harmonize dispatches a full run that continues incomplete work in topological order.
   Routes user intent to phase-specific sub-skills for interactive work while a background
   supervisor runs the orchestration tree asynchronously and opens many small draft PRs for
   human review. Use whenever the user wants to plan, design, implement, review, release, or
