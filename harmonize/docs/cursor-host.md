@@ -1,9 +1,10 @@
 # Harmonize on Cursor IDE
 
-This document is the **canonical Cursor mapping** for the harmonize plugin. Claude Code agents use
-named sub-agents (`Agent(subagent_type: harmonize)`, …) and task APIs (`TaskCreate`, `TaskStop`, …).
-Cursor exposes a different tool surface: **generic background `Task`**, **no `Skill()`**, and **no
-task registry APIs**. Behaviors and file semantics stay the same; **only dispatch mechanics change**.
+This document is the **canonical Cursor mapping** for the harmonize plugin. The harmonize master
+orchestrator runs **inline** in the current conversation (not as a background subagent). Phase
+orchestrators and workers are dispatched via background `Task` calls. Cursor does not provide
+**`Skill()`** or task registry APIs. Behaviors and file semantics stay the same; **only dispatch
+mechanics for child tasks change**.
 
 ## Source of truth
 
@@ -20,7 +21,7 @@ installed from Cursor, resolve the unpacked plugin directory from your editor or
 
 | Claude Code | Cursor host |
 |-------------|-------------|
-| `Agent(subagent_type: harmonize)` | `Task(subagent_type: generalPurpose, …)` + prompt cites `agents/harmonize.md` |
+| `Agent(subagent_type: harmonize)` | **Inline execution** — run `agents/harmonize.md` playbook directly in the conversation |
 | `Agent(subagent_type: plan-orchestrator)` | Same: `Task` + `agents/plan-orchestrator.md` |
 | `Skill(harmonize)` | `Read` on `skills/harmonize/SKILL.md` |
 | `TaskCreate` / `TaskList` / `TaskGet` / `TaskStop` / `TaskOutput` | **Absent** — use `in-flight.md` as a **log**, flush when trees die |
@@ -38,7 +39,7 @@ flowchart TD
   H -->|no| P["Read rollups + locks"]
   V --> P
   P --> S["Ready set"]
-  S --> T["Task(generalPurpose) x N"]
+  S --> T["Task(background) x N"]
 ```
 
 [Edit diagram](https://mermaid.live)
@@ -46,14 +47,11 @@ flowchart TD
 ## First assistant turn (`run`)
 
 1. **`Read`** `skills/harmonize/SKILL.md` (if not already in context).
-2. Run **`agents/harmonize.md`** **§0** stash gate in the foreground (`git` on **`REPO`**).
-3. **Background:** call **`Task`** with **`run_in_background: true`**, **`subagent_type`:
-   `generalPurpose`** (or the host’s generic worker), prompt **must** include:
-   - `mode: run`
-   - `repo: <absolute path to primary checkout>`
-   - Instruction to follow **`agents/harmonize.md`**, and **`docs/cursor-host.md`** for Cursor rules.
-4. **No `Task` tool:** run **`agents/harmonize.md`** inline in the same conversation (no nested
-   named agents).
+2. Execute **`agents/harmonize.md`** **inline** in the current conversation — the full playbook
+   runs directly (stash gate → state read → reconcile → unblock gh → dispatch orchestrators →
+   summary). Do **not** dispatch the master orchestrator as a background `Task`.
+3. Phase orchestrators and workers are dispatched via **`Task`** with
+   **`run_in_background: true`** and **`subagent_type`** per the sections below.
 
 ## Unblock workflow (gh pass) without task await
 
@@ -97,14 +95,11 @@ under **`.cursor-plugin/plugin.json`**. See the root [**README**](../../README.m
 ## Task recovery hooks (Cursor)
 
 Cursor’s **`subagentStop`** hook only applies `followup_message` when the Task **`status`** is
-`completed` (see [Cursor hooks](https://cursor.com/docs/hooks)). When a **plan-orchestrator**
-(supervisor) or **`mode: run`** harmonize master Task ends with **`error`** or **`aborted`**,
+`completed` (see [Cursor hooks](https://cursor.com/docs/hooks)). When a background
+**plan-orchestrator** Task ends with **`error`** or **`aborted`**,
 `subagent-stop-worktree-state.sh` writes **`docs/plans/.cursor-hook-restart-pending.json`** (ignored
 by git). The next **`stop`** hook run consumes that file and auto-submits a **`followup_message`**
-that tells the parent session to re-dispatch the correct background Task. If the main agent loop
-ends with **`error`** / **`aborted`** while **`harmonize-run-lock.md`** still has **`active: true`**
-(and there is no pending file), **`harmonize-cursor-stop-followup.sh`** submits a follow-up to
-re-run default **`/harmonize`** (`mode: run`).
+that tells the parent session to re-dispatch the correct background Task.
 
 **Every `subagentStop`:** after worktree roster updates, **`subagent-stop-unblock-workflow.sh`** runs.
 It always writes **`docs/plans/.cursor-hook-unblock-pending.json`** with **`last_unblock_hook_at`**
