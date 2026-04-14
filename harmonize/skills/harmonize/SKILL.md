@@ -151,8 +151,8 @@ re-dispatches orchestration. If the main loop ends with **`error`** / **`aborted
 **`harmonize-run-lock.md`** is still **`active: true`**, the **`stop`** hook re-triggers default
 **`/harmonize`**. On **every** **`subagentStop`**, **`subagent-stop-unblock-workflow.sh`** updates
 **`docs/plans/.cursor-hook-unblock-pending.json`** and may submit **`followup_message`** for **`mode:
-unblock-workflow`** when no duplicate supervisor task is already in flight. See **`docs/cursor-host.md`**
-(Task recovery hooks).
+unblock-workflow`** when no duplicate supervisor task is already in flight (debounced by default **90s**
+via **`HARMONIZE_UNBLOCK_HOOK_DEBOUNCE_SEC`**). See **`docs/cursor-host.md`** (Task recovery hooks).
 
 If **material** dirty, **stop** — no orchestrator dispatch. The user runs
 **`git stash push -u -m "harmonize-gate"`** (or commits). **No auto-stash.** **`status`**,
