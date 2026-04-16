@@ -46,6 +46,26 @@
         "workflow"
       ],
       "version": "2.0.33"
+    },
+    {
+      "author": {
+        "name": "Christian Howe"
+      },
+      "category": "development",
+      "description": "Interactive multi-machine PR dispatch orchestrator. Uses GitHub Project v2 item locks (lock_owner, lock_expires_at) and blocked-by relationships so orchestrators on different machines coordinate without shared filesystem. Dispatches up to 3 worker teammates per orchestrator via agent teams.",
+      "name": "coordinator",
+      "source": "./coordinator",
+      "tags": [
+        "agent-teams",
+        "coordinator",
+        "dispatch",
+        "github",
+        "orchestrator",
+        "project-v2",
+        "pull-request",
+        "workflow"
+      ],
+      "version": "0.1.0"
     }
   ]
 }

@@ -1,0 +1,24 @@
+{
+  "author": {
+    "name": "Christian Howe",
+    "url": "https://github.com/cjhowe-us"
+  },
+  "description": "Interactive orchestrator that dispatches up to 3 worker subagents to GitHub PRs whose Project v2 dependencies are resolved, coordinating across machines via per-item lock fields.",
+  "keywords": [
+    "agent-teams",
+    "collaboration",
+    "coordinator",
+    "development",
+    "dispatch",
+    "github",
+    "multi-user",
+    "orchestrator",
+    "projects-v2",
+    "pull-requests",
+    "workflow"
+  ],
+  "license": "Apache-2.0",
+  "name": "coordinator",
+  "repository": "https://github.com/cjhowe-us/workflow",
+  "version": "0.1.0"
+}
