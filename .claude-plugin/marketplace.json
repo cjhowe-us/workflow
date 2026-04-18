@@ -32,19 +32,63 @@
         "name": "Christian Howe"
       },
       "category": "development",
-      "description": "Interactive multi-machine PR dispatch orchestrator. Uses a single HTML-comment marker per PR body to carry lock_owner, lock_expires_at, and blocked_by so orchestrators on different machines coordinate without shared filesystem or GitHub Projects. Dispatches up to 3 background worker teammates per orchestrator via agent teams. Depends on the env-setup plugin for onboarding.",
-      "name": "coordinator",
-      "source": "./coordinator",
+      "description": "Generic workflow orchestration plugin. Two primitives — workflow and artifact — with a uniform artifact-provider contract. Ships the `default` orchestrator + tutor, `author`/`review`/`update` meta-workflows, and generic providers (execution, file-local, conversation, preferences, notifications). Designed for extension: workflow-github, workflow-documents, and workflow-sdlc ride on top.",
+      "name": "workflow",
+      "source": "./workflow",
       "tags": [
         "agent-teams",
-        "coordinator",
+        "artifacts",
         "dispatch",
-        "github",
         "orchestrator",
-        "pull-request",
         "workflow"
       ],
-      "version": "0.1.0"
+      "version": "1.0.0"
+    },
+    {
+      "author": {
+        "name": "Christian Howe"
+      },
+      "category": "development",
+      "description": "GitHub artifact providers for the workflow plugin: gh-pr, gh-issue, gh-release, gh-milestone, gh-tag, gh-branch, gh-gist. Required for teams using GitHub as the workflow backend.",
+      "name": "workflow-github",
+      "source": "./workflow-github",
+      "tags": [
+        "artifacts",
+        "github",
+        "workflow"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "author": {
+        "name": "Christian Howe"
+      },
+      "category": "development",
+      "description": "Document artifact providers + templates for the workflow plugin. Includes `document` (local) and `confluence-page` providers and a library of eight markdown document templates (design, plan, review, release, test, requirement, user-story, triage).",
+      "name": "workflow-documents",
+      "source": "./workflow-documents",
+      "tags": [
+        "artifacts",
+        "documents",
+        "templates",
+        "workflow"
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "author": {
+        "name": "Christian Howe"
+      },
+      "category": "development",
+      "description": "SDLC artifact templates and workflows for the workflow plugin. Composable cycles (write-review, plan-do, design-implement-review, sdlc, PM + project-mgmt cycles) and canned workflows (bug-fix, cut-release). Depends on workflow-github and workflow-documents.",
+      "name": "workflow-sdlc",
+      "source": "./workflow-sdlc",
+      "tags": [
+        "sdlc",
+        "templates",
+        "workflow"
+      ],
+      "version": "1.0.0"
     },
     {
       "author": {

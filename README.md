@@ -1,18 +1,19 @@
 # cjhowe-us/workflow — Claude Code Marketplace
 
-Claude Code plugin marketplace containing three plugins that power the development workflow for the
-Harmonius game engine.
+Claude Code plugin marketplace. The `workflow` family replaces the old `coordinator` plugin with a
+generic workflow-orchestration system built on two primitives (workflow + artifact) plus swappable
+artifact providers.
 
 ## Plugins
 
 | Plugin | Purpose |
 |--------|---------|
-| [`rumdl`](./rumdl) | Markdown LSP + PostToolUse formatter hook + `markdown` coding-standard skill |
-| [`coordinator`](./coordinator) | Interactive multi-machine PR dispatch orchestrator. State lives in the PR body itself (single HTML-comment marker). Dispatches up to 3 background worker teammates per orchestrator via agent teams. |
-| [`env-setup`](./env-setup) | Cross-platform user-env-var onboarding helper (zsh / bash / fish / sh / ksh / PowerShell). Used as a dependency by other plugins that need to set env vars during onboarding. |
-
-`coordinator` depends on `env-setup` to persist `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
-cross-platform. Install both.
+| [`workflow`](./workflow) | Generic workflow orchestration plugin. One routing skill `/workflow`, one agent role `worker`, five core artifact providers (`execution`, `file-local`, `conversation`, `preferences`, `notifications`), and meta-workflows for authoring/reviewing/updating workflows. |
+| [`workflow-github`](./workflow-github) | GitHub artifact providers: `gh-pr`, `gh-issue`, `gh-release`, `gh-milestone`, `gh-tag`, `gh-branch`, `gh-gist`. Required for GitHub-backed teams. |
+| [`workflow-documents`](./workflow-documents) | Document artifact providers (`document` local delegator, `confluence-page`) + eight markdown templates (design, plan, review, release, test, requirement, user-story, triage). |
+| [`workflow-sdlc`](./workflow-sdlc) | SDLC artifact templates (write-review, plan-do, design-implement-review, sdlc, PM + project-mgmt + orchestrator cycles) and canned workflows (bug-fix, cut-release). |
+| [`rumdl`](./rumdl) | Markdown LSP + PostToolUse formatter hook + `markdown` coding-standard skill. |
+| [`env-setup`](./env-setup) | Cross-platform user-env-var onboarding helper (zsh / bash / fish / sh / ksh / PowerShell). Persist `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` cross-platform. |
 
 ## Install
 
@@ -20,39 +21,43 @@ cross-platform. Install both.
 # Add the marketplace (once)
 claude plugin marketplace add cjhowe-us/workflow
 
-# Install env-setup first (coordinator depends on it)
+# env-setup first (workflow expects CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)
 claude plugin install env-setup@cjhowe-us-workflow
-claude plugin install coordinator@cjhowe-us-workflow
+
+# Core workflow plugin
+claude plugin install workflow@cjhowe-us-workflow
+
+# Recommended extensions
+claude plugin install workflow-github@cjhowe-us-workflow
+claude plugin install workflow-documents@cjhowe-us-workflow
+claude plugin install workflow-sdlc@cjhowe-us-workflow
 
 # Optional: rumdl for Markdown linting/formatting
 claude plugin install rumdl@cjhowe-us-workflow
 ```
 
-## Update
-
-```bash
-claude plugin update env-setup@cjhowe-us-workflow
-claude plugin update coordinator@cjhowe-us-workflow
-claude plugin update rumdl@cjhowe-us-workflow
-```
-
-## Uninstall
-
-```bash
-claude plugin uninstall coordinator
-claude plugin uninstall env-setup
-claude plugin uninstall rumdl
-```
-
 ## Prerequisites
 
-- `coordinator` requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — persist it via the `env-setup`
-  skill (`/env-setup:env-setup CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 1`) or run
-  `env-setup/skills/env-setup/scripts/ensure-env.sh` directly. See
-  [`coordinator/README.md`](./coordinator/README.md) for the full requirements.
-- `coordinator` also requires the `gh` CLI authenticated with the `repo` scope.
-- `rumdl` plugin requires the `rumdl` binary on `PATH`. See [`rumdl/README.md`](./rumdl/README.md)
-  for install instructions and `.rumdl.toml` configuration.
+- `workflow` requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` — persist it via `env-setup`:
+  `/env-setup:env-setup CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 1`.
+- `gh` CLI authenticated (`gh auth login`). Identity comes from `gh auth status`; no login dialog.
+- `workflow-github` uses only `gh` + `git` internally.
+- `workflow-documents`'s `confluence-page` provider needs `CONFLUENCE_BASE_URL`, `CONFLUENCE_USER`,
+  `CONFLUENCE_TOKEN`.
+
+## First run
+
+```text
+/workflow
+```
+
+On first invocation the `default` orchestrator runs a brief tutor walking through the two
+primitives, installed extensions, and a guided try-it. Subsequent invocations skip to the dashboard.
+
+## Design
+
+See [`workflow/DESIGN.md`](./workflow/DESIGN.md) for the full design document + dated
+architecture-decision changelog.
 
 ## License
 
