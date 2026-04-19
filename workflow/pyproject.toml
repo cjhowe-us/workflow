@@ -16,10 +16,25 @@ dependencies = [
   "tomlkit>=0.13",
 ]
 
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# Plugin tree is not a Python package (hooks/, agents/, skills/, workflows/
+# are Claude-Code plugin directories). The pyproject exists only to declare
+# runtime + dev dependencies and to host pytest/ruff/mypy config — there is
+# nothing to ship to PyPI.
+[tool.setuptools]
+py-modules = []
+packages = []
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
   "pytest-xdist>=3",
+  "ruff>=0.7",
+  "mypy>=1.11",
+  "types-PyYAML>=6",
 ]
 
 [tool.pytest.ini_options]
@@ -31,11 +46,32 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-# Default rules: E (pycodestyle errors), F (pyflakes). Add I (import sort).
-extend-select = ["I"]
+# E (pycodestyle), F (pyflakes), I (import sort), UP (pyupgrade),
+# ANN (flake8-annotations) for static-type universality.
+extend-select = ["I", "UP", "ANN"]
+# ANN101/ANN102 (self/cls types) and ANN401 (Any) are noisy; mypy enforces
+# the substantive coverage. Tests opt out of ANN entirely (pytest fixtures
+# rarely benefit from explicit annotation noise).
+ignore = ["ANN101", "ANN102", "ANN401"]
 
 [tool.ruff.lint.per-file-ignores]
 # These modules bootstrap `artifactlib` onto sys.path before importing it,
 # which legitimately requires imports below executable code.
 "artifact-storage/execution-gh-pr/storage.py" = ["E402"]
 "scripts/dispatch-execution.py" = ["E402"]
+"tests/**" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "scripts:../../artifact-plugin/artifact-plugin/scripts:../../artifact/artifact/scripts"
+explicit_package_bases = true
+namespace_packages = true
+files = ["scripts", "hooks", "artifact-schemes", "artifact-storage"]
+# Plugin-cache deployments install artifactlib next to us; in CI we sibling-
+# checkout the artifact repo. Either way the import is dynamic — silence the
+# follow-imports noise but keep our own code strict.
+[[tool.mypy.overrides]]
+module = ["artifactlib", "artifactlib.*"]
+ignore_missing_imports = true
+follow_imports = "skip"

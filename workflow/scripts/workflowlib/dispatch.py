@@ -33,10 +33,11 @@ def instantiate(
         "workflow": manifest.get("name") or workflow_dir.name,
         "inputs": inputs,
     }
-    return provider.dispatch(
+    result: dict[str, Any] = provider.dispatch(
         scheme_name="execution",
         subcommand="create",
         payload=payload,
         uri_str=None,
         storage_override=storage,
     )
+    return result

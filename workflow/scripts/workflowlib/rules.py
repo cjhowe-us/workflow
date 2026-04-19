@@ -11,6 +11,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 _BASH_WRITE_PATTERN = re.compile(r"(>>?|\brm\s+-[rf]+\b|\bmv\b|\btee\b|\bcp\b)\s+(\S+)")
 
@@ -43,7 +44,7 @@ def plugin_roots() -> list[Path]:
     return out
 
 
-def candidate_paths(tool_name: str, tool_input: dict) -> list[Path]:
+def candidate_paths(tool_name: str, tool_input: dict[str, Any]) -> list[Path]:
     """Extract paths a tool is about to write to."""
     paths: list[Path] = []
     if tool_name in {"Edit", "Write"}:
@@ -57,7 +58,7 @@ def candidate_paths(tool_name: str, tool_input: dict) -> list[Path]:
     return paths
 
 
-def no_self_edit(tool_name: str, tool_input: dict) -> RuleResult:
+def no_self_edit(tool_name: str, tool_input: dict[str, Any]) -> RuleResult:
     """Block writes under any installed plugin root.
 
     Previously in bash: when `CLAUDE_PLUGIN_DIRS` was unset, the check matched
@@ -82,7 +83,7 @@ def no_self_edit(tool_name: str, tool_input: dict) -> RuleResult:
     return RuleResult(0)
 
 
-def check(tool_name: str, tool_input: dict) -> RuleResult:
+def check(tool_name: str, tool_input: dict[str, Any]) -> RuleResult:
     """Execution-scoped rules — placeholder for now; wire up per-execution
     allowlists once `workflowlib.dispatch` records the active execution's scope.
     """

@@ -14,7 +14,7 @@ from workflowlib import paths
 
 def main() -> int:
     flag = paths.state_dir() / "rescan.flag"
-    flag.write_text(datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    flag.write_text(datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
     return 0
 
 

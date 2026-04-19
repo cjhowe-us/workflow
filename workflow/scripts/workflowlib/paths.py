@@ -12,7 +12,7 @@ from artifactlib import xdg
 
 
 def state_dir() -> Path:
-    d = xdg.resolve().state / "workflow"
+    d: Path = xdg.resolve().state / "workflow"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

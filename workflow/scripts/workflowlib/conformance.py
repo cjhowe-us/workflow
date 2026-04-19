@@ -109,11 +109,13 @@ def _check_manifest(path: Path, r: Result) -> None:
             r.errors.append(f"manifest.graph.transitions[{j}]: to `{t['to']}` not in steps")
         tids.append(t.get("id"))
 
-    for k, b in enumerate(m.get("dynamic_branches") or []):
+    for idx, b in enumerate(m.get("dynamic_branches") or []):
         if b.get("step") not in step_ids:
-            r.errors.append(f"manifest.dynamic_branches[{k}]: step `{b.get('step')}` not in steps")
+            r.errors.append(
+                f"manifest.dynamic_branches[{idx}]: step `{b.get('step')}` not in steps"
+            )
         for tid in b.get("transitions") or []:
             if tid not in tids:
                 r.errors.append(
-                    f"manifest.dynamic_branches[{k}]: transition `{tid}` not in transitions"
+                    f"manifest.dynamic_branches[{idx}]: transition `{tid}` not in transitions"
                 )

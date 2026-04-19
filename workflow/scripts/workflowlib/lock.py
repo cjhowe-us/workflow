@@ -33,7 +33,8 @@ def _read_payload(p: Path) -> dict[str, Any] | None:
     if not p.is_file():
         return None
     try:
-        return json.loads(p.read_text())
+        data: dict[str, Any] = json.loads(p.read_text())
+        return data
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -75,7 +76,7 @@ def acquire_orchestrator(session: str) -> Holder:
     holder = Holder(
         pid=os.getpid(),
         session=session,
-        started_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        started_at=datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     )
     lock_path.write_text(json.dumps(asdict(holder)))
     # fd stays open for the process lifetime; flock releases automatically on exit.

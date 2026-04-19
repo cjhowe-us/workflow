@@ -51,7 +51,7 @@ class PRRef:
 
 
 def _now_iso() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _parse_uri(raw: str) -> PRRef:
@@ -104,7 +104,8 @@ def _gh_pr_view(pr: PRRef, fields: list[str]) -> dict[str, Any]:
             ",".join(fields),
         ]
     )
-    return json.loads(out)
+    data: dict[str, Any] = json.loads(out)
+    return data
 
 
 def cmd_create(
@@ -173,7 +174,7 @@ def cmd_get(*, scheme: Any, adapter: dict[str, Any], input: Any, uri: str | None
     merged = bool(data.get("mergedAt"))
     closed = data.get("state") == "CLOSED"
     status = "complete" if merged else "aborted" if closed else "running"
-    content = {
+    content: dict[str, Any] = {
         "workflow": "",  # populated from wf:summary comment if we parse it; left empty on this read
         "workflow_inputs": {},
         "title": data.get("title"),

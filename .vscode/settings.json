@@ -1,0 +1,35 @@
+{
+  "editor.wordWrapColumn": 120,
+  "editor.minimap.maxColumn": 120,
+  "evenBetterToml.formatter.columnWidth": 120,
+  "rumdl.diagnostics.deduplicate": true,
+  "rumdl.enable": true,
+  "rewrap.wrappingColumn": 120,
+  "editor.rulers": [120],
+
+  "python.defaultInterpreterPath": "${workspaceFolder}/workflow/.venv/bin/python",
+  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/workflow/scripts",
+    "${workspaceFolder}/../artifact-plugin/artifact-plugin/scripts",
+    "${workspaceFolder}/../artifact/artifact/scripts"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["workflow"],
+  "python.testing.cwd": "${workspaceFolder}/workflow",
+
+  "mypy-type-checker.path": ["${workspaceFolder}/workflow/.venv/bin/mypy"],
+  "mypy-type-checker.cwd": "${workspaceFolder}/workflow",
+  "mypy-type-checker.preferDaemon": true,
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+  "ruff.configurationPreference": "filesystemFirst",
+  "ruff.importStrategy": "fromEnvironment"
+}

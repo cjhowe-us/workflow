@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -15,10 +16,10 @@ from workflowlib import ledger, status
 
 
 def _now() -> str:
-    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _summarize(tool_name: str, tool_input: dict) -> str | None:
+def _summarize(tool_name: str, tool_input: dict[str, Any]) -> str | None:
     if tool_name in {"Edit", "Write"}:
         p = tool_input.get("file_path", "")
         return f"{tool_name} {p}"

@@ -22,7 +22,8 @@ def read() -> dict[str, Any]:
     if not p.is_file():
         return {}
     try:
-        return json.loads(p.read_text())
+        data: dict[str, Any] = json.loads(p.read_text())
+        return data
     except (OSError, json.JSONDecodeError):
         return {}
 
