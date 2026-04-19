@@ -6,12 +6,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Christian Howe", email = "cjhowe@users.noreply.github.com" }]
+# Plugin-level dependency on `artifact` is declared in .claude-plugin/plugin.json
+# (`requires.artifact`) — installed from the Claude Code marketplace. In-repo
+# tests see the sibling plugin via the `pythonpath` entry below.
 dependencies = [
   "pydantic>=2,<3",
   "pyyaml>=6",
   "jinja2>=3.1",
   "tomlkit>=0.13",
-  "artifact @ file:///Users/cjhowe/Code/artifact/artifact",
 ]
 
 [project.optional-dependencies]
@@ -22,4 +24,4 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["scripts"]
+pythonpath = ["scripts", "../../artifact/artifact/scripts"]
