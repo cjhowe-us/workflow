@@ -8,7 +8,7 @@ artifact providers.
 
 | Plugin | Purpose |
 |--------|---------|
-| [`workflow`](./workflow) | Generic workflow orchestration plugin. One routing skill `/workflow`, one agent role `worker`, five core artifact providers (`execution`, `file-local`, `conversation`, `preferences`, `notifications`), and meta-workflows for authoring/reviewing/updating workflows. |
+| [`workflow-plugin`](./workflow-plugin) | Generic workflow orchestration plugin. One routing skill `/workflow`, one agent role `worker`, five core artifact providers (`execution`, `file-local`, `conversation`, `preferences`, `notifications`), and meta-workflows for authoring/reviewing/updating workflows. |
 | [`workflow-github`](./workflow-github) | GitHub artifact providers: `gh-pr`, `gh-issue`, `gh-release`, `gh-milestone`, `gh-tag`, `gh-branch`, `gh-gist`. Required for GitHub-backed teams. |
 | [`workflow-documents`](./workflow-documents) | Document artifact providers (`document` local delegator, `confluence-page`) + eight markdown templates (design, plan, review, release, test, requirement, user-story, triage). |
 | [`workflow-sdlc`](./workflow-sdlc) | SDLC artifact templates (write-review, plan-do, design-implement-review, sdlc, PM + project-mgmt + orchestrator cycles) and canned workflows (bug-fix, cut-release). |
@@ -56,7 +56,7 @@ primitives, installed extensions, and a guided try-it. Subsequent invocations sk
 
 ## Design
 
-See [`workflow/DESIGN.md`](./workflow/DESIGN.md) for the full design document + dated
+See [`workflow-plugin/DESIGN.md`](./workflow-plugin/DESIGN.md) for the full design document + dated
 architecture-decision changelog.
 
 ## License

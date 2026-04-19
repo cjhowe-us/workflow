@@ -20,12 +20,16 @@ if str(WORKFLOW_SCRIPTS) not in sys.path:
 def _find_artifact_scripts() -> Path | None:
     """Walk up from this repo to locate the sibling artifact plugin's scripts/."""
     for ancestor in REPO.parents:
-        cand = ancestor.parent / "artifact" / "artifact" / "scripts"
-        if (cand / "artifactlib").is_dir():
-            return cand
-        cand = ancestor.parent / "artifact" / "scripts"
-        if (cand / "artifactlib").is_dir():
-            return cand
+        for root_name in ("artifact-plugin", "artifact"):
+            cand = ancestor.parent / root_name / "artifact-plugin" / "scripts"
+            if (cand / "artifactlib").is_dir():
+                return cand
+            cand = ancestor.parent / root_name / "artifact" / "scripts"
+            if (cand / "artifactlib").is_dir():
+                return cand
+            cand = ancestor.parent / root_name / "scripts"
+            if (cand / "artifactlib").is_dir():
+                return cand
     return None
 
 

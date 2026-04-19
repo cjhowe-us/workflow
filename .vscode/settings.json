@@ -7,19 +7,18 @@
   "rewrap.wrappingColumn": 120,
   "editor.rulers": [120],
 
-  "python.defaultInterpreterPath": "${workspaceFolder}/workflow/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/workflow-plugin/.venv/bin/python",
   "python.analysis.typeCheckingMode": "off",
   "python.analysis.extraPaths": [
-    "${workspaceFolder}/workflow/scripts",
-    "${workspaceFolder}/../artifact-plugin/artifact-plugin/scripts",
-    "${workspaceFolder}/../artifact/artifact/scripts"
+    "${workspaceFolder}/workflow-plugin/scripts",
+    "${workspaceFolder}/../artifact-plugin/artifact-plugin/scripts"
   ],
   "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["workflow"],
-  "python.testing.cwd": "${workspaceFolder}/workflow",
+  "python.testing.pytestArgs": ["workflow-plugin"],
+  "python.testing.cwd": "${workspaceFolder}/workflow-plugin",
 
-  "mypy-type-checker.path": ["${workspaceFolder}/workflow/.venv/bin/mypy"],
-  "mypy-type-checker.cwd": "${workspaceFolder}/workflow",
+  "mypy-type-checker.path": ["${workspaceFolder}/workflow-plugin/.venv/bin/mypy"],
+  "mypy-type-checker.cwd": "${workspaceFolder}/workflow-plugin",
   "mypy-type-checker.preferDaemon": true,
 
   "[python]": {

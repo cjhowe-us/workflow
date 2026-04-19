@@ -1,4 +1,4 @@
-name: workflow CI
+name: workflow-plugin CI
 
 on:
   push:
@@ -19,18 +19,18 @@ jobs:
         with:
           enable-cache: true
       - name: ruff check
-        run: uvx ruff check workflow
+        run: uvx ruff check workflow-plugin
       - name: ruff format --check
-        run: uvx ruff format --check workflow
+        run: uvx ruff format --check workflow-plugin
 
   ty:
     name: ty
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout workflow
+      - name: Checkout workflow-plugin
         uses: actions/checkout@v4
         with:
-          path: workflow
+          path: workflow-plugin
 
       - name: Checkout sibling artifact-plugin
         uses: actions/checkout@v4
@@ -43,16 +43,16 @@ jobs:
         with:
           python-version: '3.12'
           enable-cache: true
-          cache-dependency-glob: workflow/workflow/pyproject.toml
+          cache-dependency-glob: workflow-plugin/workflow-plugin/pyproject.toml
 
-      - name: Install workflow + dev deps into a venv
-        working-directory: workflow/workflow
+      - name: Install workflow-plugin + dev deps into a venv
+        working-directory: workflow-plugin/workflow-plugin
         run: |
           uv venv .venv --python 3.12
           uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: ty check
-        working-directory: workflow/workflow
+        working-directory: workflow-plugin/workflow-plugin
         run: uvx ty check --python .venv/bin/python
 
   pytest:
@@ -64,12 +64,12 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python-version: ['3.11', '3.12']
     steps:
-      - name: Checkout workflow
+      - name: Checkout workflow-plugin
         uses: actions/checkout@v4
         with:
-          path: workflow
+          path: workflow-plugin
 
-      # Sibling checkout — workflow/tests/conftest.py and pyproject.toml's
+      # Sibling checkout — workflow-plugin/tests/conftest.py and pyproject.toml's
       # pythonpath both expect ../artifact-plugin/artifact-plugin/scripts to
       # exist so the `artifactlib` import resolves without publishing
       # artifact-plugin to PyPI.
@@ -84,12 +84,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-          cache-dependency-glob: workflow/workflow/pyproject.toml
+          cache-dependency-glob: workflow-plugin/workflow-plugin/pyproject.toml
 
-      - name: Install workflow + dev deps
-        working-directory: workflow/workflow
+      - name: Install workflow-plugin + dev deps
+        working-directory: workflow-plugin/workflow-plugin
         run: uv pip install --system -e ".[dev]"
 
       - name: Run pytest
-        working-directory: workflow/workflow
+        working-directory: workflow-plugin/workflow-plugin
         run: python -m pytest -v
