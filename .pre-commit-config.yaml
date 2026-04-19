@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        args: [--config-file=workflow/pyproject.toml]
+        additional_dependencies:
+          - pydantic>=2,<3
+          - tomlkit>=0.13
+          - jinja2>=3.1
+          - pyyaml>=6
+          - types-PyYAML>=6
+        pass_filenames: false
+
+  # Inherit `new-file-tests` from python-plugin (single source of truth).
+  - repo: https://github.com/cjhowe-us/python-plugin
+    rev: v0.3.0
+    hooks:
+      - id: new-file-tests
