@@ -20,12 +20,20 @@ def _bootstrap_artifactlib() -> None:
         pass
 
     here = Path(__file__).resolve()
-    # Look for a sibling `artifact` plugin: `<parent-of-workflow-repo>/artifact/artifact/scripts/`.
+    # Layouts we want to cover:
+    #   dev checkout:   <sibling>/artifact/artifact/scripts/artifactlib
+    #   legacy mono:    <sibling>/artifact/scripts/artifactlib
+    #   plugin cache:   <sibling>/artifact/<version>/scripts/artifactlib
     for ancestor in here.parents:
-        for cand in (
-            ancestor.parent / "artifact" / "artifact" / "scripts",
-            ancestor.parent / "artifact" / "scripts",
-        ):
+        artifact_root = ancestor.parent / "artifact"
+        if not artifact_root.is_dir():
+            continue
+        candidates = [
+            artifact_root / "artifact" / "scripts",
+            artifact_root / "scripts",
+        ]
+        candidates.extend(sorted(artifact_root.glob("*/scripts"), reverse=True))
+        for cand in candidates:
             if (cand / "artifactlib").is_dir():
                 sys.path.insert(0, str(cand))
                 return
