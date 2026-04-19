@@ -1,0 +1,48 @@
+name: workflow CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.11', '3.12']
+    steps:
+      - name: Checkout workflow
+        uses: actions/checkout@v4
+        with:
+          path: workflow
+
+      # Sibling checkout — workflow/tests/conftest.py and pyproject.toml's
+      # pythonpath both expect ../artifact/artifact/scripts to exist so the
+      # `artifactlib` import resolves without publishing artifact to PyPI.
+      - name: Checkout sibling artifact plugin
+        uses: actions/checkout@v4
+        with:
+          repository: cjhowe-us/artifact
+          path: artifact
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install workflow + dev deps
+        working-directory: workflow/workflow
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run pytest
+        working-directory: workflow/workflow
+        run: python -m pytest -v
