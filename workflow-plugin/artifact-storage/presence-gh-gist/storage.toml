@@ -1,0 +1,8 @@
+name             = "presence-gh-gist"
+description      = "Workflow presence record stored in a private per-GitHub-user gist (workflow-user-lock-<gh-user-id>)."
+contract_version = 1
+backs_schemes    = ["presence"]
+
+[capabilities]
+supports_locking = false
+supports_listing = true

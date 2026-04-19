@@ -29,8 +29,25 @@ claude plugin install workflow@cjhowe-us-marketplace
 
 ## First run
 
-`/workflow` opens the dashboard and routes user intent. On first invocation the `default` orchestrator runs its tutor:
-welcome, the workflow/artifact primitives, installed extensions, and a guided try-it.
+`/workflow` opens the dashboard and routes user intent. The `default` orchestrator is a four-step DAG (`seed` → `tutor`
+→ `interpret` → `act`). On first invocation for a (user, workspace) pair it runs:
+
+1. **`seed`** — detects whether the repo is on GitHub, then asks one `AskUserQuestion` per backend slot: execution state
+   storage (default `execution-gh-pr`), lock / presence storage (default `gh-gist`), and dependency overlay (default
+   `gh-issue`). All three are pluggable and optional — the defaults are proposals the user confirms, swaps, or declines
+   per slot. Accepted choices are written to `preferences:workspace/<repo-hash>.extra.*` (team-shared settings) and
+   `preferences:user.extra.*` (per-developer settings).
+2. **`tutor`** — walks the user through the two primitives (workflow, artifact), enumerates installed extensions, and
+   offers a guided try-it. Re-open later with `/workflow teach me again`.
+3. **`interpret` / `act`** — normal intent routing + dispatch.
+
+Subsequent invocations skip `seed` (once `workflow_initialized=true` is set) and `tutor` (once `tutor_completed=true` is
+set), running `interpret` → `act` directly.
+
+GitHub auth is consulted through `workflowlib.auth`, which caches `gh auth status` on-disk under
+`$ARTIFACT_CONFIG_DIR/workflow/gh_auth.json` (default TTL 1 h, override via `WORKFLOW_GH_AUTH_TTL_S`). The same helper
+wraps `artifactlib_gh.gh.auth_status` so every plugin in the ecosystem reads the same identity without re-shelling per
+call.
 
 ## Extending with your own workflows
 

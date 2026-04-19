@@ -45,8 +45,8 @@ execution.
 
 ## Author your own
 
-Custom workflows drop into one of four scope directories (override > workspace > user >
-plugin). The plugin-shipped ones are immutable; all authoring goes through `conductor`:
+Custom workflows drop into one of four scope directories (override > workspace > user > plugin). The plugin-shipped ones
+are immutable; all authoring goes through `conductor`:
 
 | Goal                             | Command                                            |
 |----------------------------------|----------------------------------------------------|
@@ -54,17 +54,35 @@ plugin). The plugin-shipped ones are immutable; all authoring goes through `cond
 | Personal (across all projects)   | `/workflow create <name> --scope user`             |
 | One-off (this working tree)      | `/workflow create <name> --scope override`         |
 
-Same pattern for `update`, `review`, `delete`. All four dispatch the `conductor` workflow
-with the matching `mode` input. See `references/workflow-contract.md` §Scopes for path
-details and the decision table.
+Same pattern for `update`, `review`, `delete`. All four dispatch the `conductor` workflow with the matching `mode`
+input. See `references/workflow-contract.md` §Scopes for path details and the decision table.
 
-## First run (tutor)
+## First run (seed + tutor)
 
-On the first invocation after install, `preferences:user.tutor.completed` is falsy. Route to the tutor flow: welcome,
-the workflow + artifact primitives (reference the artifact plugin's docs), installed extensions, and a guided try-it.
-Set `tutor.completed = true` on finish.
+Before dispatch, compute two flags from preferences and pass them as workflow inputs:
 
-Re-open later with "teach me again" or equivalent.
+- `initialized` — true when BOTH `preferences:user.extra.workflow_initialized` AND
+  `preferences:workspace/<repo-hash>.extra.workflow_initialized` are true.
+- `tutor_completed` — true when `preferences:user.extra.tutor_completed` is true.
+
+The default workflow's `seed` step fires when `initialized == false`. It detects whether the current repo is on GitHub,
+then asks **one `AskUserQuestion` per backend slot** — each backend is pluggable and optional, so the user confirms or
+swaps each default independently:
+
+- **Execution state storage** — default `execution-gh-pr` on GitHub. Written to
+  `preferences:workspace/<repo-hash>.extra.storage_state` (team-shared via the workspace scope).
+- **Lock / presence storage** — default `gh-gist` on GitHub. Written to `preferences:user.extra.storage_lock`
+  (per-developer).
+- **Dependency overlay** — default `gh-issue` on GitHub. Written to
+  `preferences:workspace/<repo-hash>.extra.overlay_dependencies`.
+
+Each question offers the proposed default first, other installed backends next, and a "decline" option. Declined
+backends leave the corresponding preference key unset; the user can wire one up later via the `conductor` workflow. Off
+GitHub, the defaults are empty and the user picks an available backend (or declines) for each slot.
+
+The `tutor` step fires when `tutor_completed == false`: walks the user through the two primitives, enumerates installed
+extensions, and offers a guided try-it. Sets `preferences:user.extra.tutor_completed = true` on finish. Re-open later
+with `/workflow teach me again`.
 
 ## Invariants held here
 
@@ -72,9 +90,8 @@ Re-open later with "teach me again" or equivalent.
 - Identity from `gh auth status`; no login dialog.
 - One orchestrator per machine (flock).
 - Progress rendered on demand from provider queries; no caches.
-- Plugin files are immutable; writes go through override / workspace / user scope via the
-  `conductor` workflow (create / update / review / delete modes, all on top of the artifact
-  plugin's CRUD surface).
+- Plugin files are immutable; writes go through override / workspace / user scope via the `conductor` workflow (create /
+  update / review / delete modes, all on top of the artifact plugin's CRUD surface).
 
 ## References (load on demand)
 

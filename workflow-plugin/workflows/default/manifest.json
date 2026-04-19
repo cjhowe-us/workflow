@@ -1,4 +1,6 @@
 {
+  "name": "default",
+  "description": "Default orchestrator + first-run seed + tutor. Entry point for /workflow.",
   "contract_version": 1,
   "sdlc_phase": [],
   "inputs": [
@@ -7,6 +9,20 @@
       "type": "string",
       "required": false,
       "description": "Free-form user request. Empty = open dashboard."
+    },
+    {
+      "name": "initialized",
+      "type": "bool",
+      "required": false,
+      "default": false,
+      "description": "True when both preferences:user and the workspace preferences carry workflow_initialized=true. Injected by the /workflow skill before dispatch."
+    },
+    {
+      "name": "tutor_completed",
+      "type": "bool",
+      "required": false,
+      "default": false,
+      "description": "True when preferences:user.tutor.completed is set. Injected by the /workflow skill before dispatch."
     }
   ],
   "outputs": [
@@ -14,10 +30,29 @@
       "name": "response",
       "type": "string",
       "description": "Rendered dashboard or action result."
+    },
+    {
+      "name": "seed_outcome",
+      "type": "string",
+      "description": "URI of the seed-outcome artifact when seed ran; empty otherwise."
     }
   ],
   "graph": {
     "steps": [
+      {
+        "id": "seed",
+        "when": "initialized == false",
+        "agent": "worker",
+        "prompt_variant": "seed",
+        "description": "First-run seed. Calls workflowlib.seed.detect_repo + seed(). On GitHub: writes preferences:workspace.storage.state=execution-gh-pr and preferences:user.storage.lock=gh-gist; asks via AskUserQuestion whether to enable the gh-issue dependency overlay. Off GitHub: asks which state backend to use. Sets workflow_initialized=true on both preference scopes."
+      },
+      {
+        "id": "tutor",
+        "when": "tutor_completed == false",
+        "agent": "worker",
+        "prompt_variant": "tutor",
+        "description": "Walk the user through the workflow + artifact primitives, enumerate installed extensions, and offer a guided try-it. Sets preferences:user.tutor.completed=true on finish."
+      },
       {
         "id": "interpret",
         "agent": "worker",
@@ -32,12 +67,9 @@
       }
     ],
     "transitions": [
-      {
-        "id": "t1",
-        "from": "interpret",
-        "to": "act"
-      }
+      {"id": "t0", "from": "seed",      "to": "tutor"},
+      {"id": "t1", "from": "tutor",     "to": "interpret"},
+      {"id": "t2", "from": "interpret", "to": "act"}
     ]
-  },
-  "name": "default"
+  }
 }

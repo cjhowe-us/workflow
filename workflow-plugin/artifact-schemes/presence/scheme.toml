@@ -1,0 +1,8 @@
+name             = "presence"
+scheme           = "presence"
+kind             = "vertex"
+description      = "Per-GitHub-user workflow presence record (active machines, heartbeats, retired sessions)."
+contract_version = 1
+
+[[storage]]
+name = "presence-gh-gist"

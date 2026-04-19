@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
 from dataclasses import dataclass, field
+
+from . import auth
 
 
 @dataclass
@@ -28,12 +29,8 @@ def check() -> EnvReport:
     if shutil.which("gh") is None:
         r.warnings.append("gh CLI not found. Install: https://cli.github.com/")
     else:
-        proc = subprocess.run(
-            ["gh", "auth", "status"],
-            capture_output=True,
-            text=True,
-        )
-        if proc.returncode != 0:
+        ident = auth.identity()
+        if not ident.authenticated:
             r.warnings.append("gh is not authenticated. Run: gh auth login")
 
     if os.environ.get("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS") != "1":

@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from workflowlib import lock  # side-effect: bootstraps artifactlib onto sys.path
 from artifactlib import registry
-from workflowlib import lock
 
 
 def _gh_user() -> str:
