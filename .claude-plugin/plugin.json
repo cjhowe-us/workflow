@@ -1,18 +1,19 @@
 {
   "name": "workflow-plugin",
   "version": "3.0.0",
+  "license": "Apache-2.0",
   "repository": "https://github.com/cjhowe-us/workflow-plugin",
   "author": {
     "name": "Christian Howe",
     "url": "https://github.com/cjhowe-us"
   },
-  "description": "glibre workflow agents (chore, code, design, plan, product, review, test) and skills (think, work, review-respond) for issue-driven, spec-first Rust development on GitHub.",
+  "description": "self-driven SDLC agents and skills for GitHub",
   "keywords": [
     "agents",
-    "glibre",
     "github",
     "skills",
-    "workflow"
-  ],
-  "license": "Apache-2.0"
+    "workflow",
+    "sdlc",
+    "automation"
+  ]
 }

@@ -2,13 +2,13 @@
   "name": "workflow-plugin",
   "owner": {
     "name": "Christian Howe",
-    "url": "https://github.com/cjhowe-us"
+    "url": "https://github.com/cjhowe-us/workflow-plugin"
   },
   "plugins": [
     {
       "name": "workflow-plugin",
-      "source": "./",
-      "description": "glibre workflow agents and skills."
+      "description": "self-driven SDLC agents and skills for GitHub",
+      "source": "./"
     }
   ]
 }
